@@ -1,6 +1,11 @@
 # Shipt Marketplace Engineering Org Manager
 
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=flat&logo=vercel)](https://engineering-org-manager.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20App-blue?style=flat)](https://engineering-org-manager.vercel.app/)
+
 > A modern, interactive organization management tool for visualizing and analyzing engineering teams at scale.
+
+**🌐 Live Application:** [https://engineering-org-manager.vercel.app/](https://engineering-org-manager.vercel.app/)
 
 ## 🎯 Overview
 
