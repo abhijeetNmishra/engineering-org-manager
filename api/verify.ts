@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
 
 // Initialize Redis client
-const redis = new Redis(process.env.REDIS_URL || '');
+const redis = new Redis(process.env.KV_REDIS_URL || '');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

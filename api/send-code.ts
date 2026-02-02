@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import Redis from 'ioredis';
 
 // Initialize Redis client
-const redis = new Redis(process.env.REDIS_URL || '');
+const redis = new Redis(process.env.KV_REDIS_URL || '');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
