@@ -1,13 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
-
-// Share the same store with send-code (in production, use Redis or database)
-const passcodeStore = new Map<string, { 
-  code: string; 
-  expiresAt: number; 
-  attempts: number;
-  lastAttempt: number;
-}>();
+import { kv } from '@vercel/kv';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -32,32 +25,25 @@ export default async function handler(
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedCode = code.replace(/\s/g, ''); // Remove spaces
 
-    // Get stored code
-    const stored = passcodeStore.get(normalizedEmail);
+    // Get stored code from Vercel KV
+    const codeKey = `passcode:${normalizedEmail}`;
+    const storedCode = await kv.get<string>(codeKey);
 
-    if (!stored) {
+    if (!storedCode) {
       return res.status(400).json({ 
         error: 'No verification code found. Please request a new code.' 
       });
     }
 
-    // Check if code expired
-    if (Date.now() > stored.expiresAt) {
-      passcodeStore.delete(normalizedEmail);
-      return res.status(400).json({ 
-        error: 'Verification code has expired. Please request a new code.' 
-      });
-    }
-
     // Verify code
-    if (stored.code !== normalizedCode) {
+    if (storedCode !== normalizedCode) {
       return res.status(400).json({ 
         error: 'Invalid verification code. Please try again.' 
       });
     }
 
     // Code is valid - delete it so it can't be reused
-    passcodeStore.delete(normalizedEmail);
+    await kv.del(codeKey);
 
     // Generate JWT token
     const expiresAt = Date.now() + SESSION_DURATION_MS;

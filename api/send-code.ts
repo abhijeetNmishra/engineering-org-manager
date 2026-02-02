@@ -1,18 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Resend } from 'resend';
-
-// In-memory store for passcodes (will reset on function cold start)
-// Format: { email: { code, expiresAt, attempts } }
-const passcodeStore = new Map<string, { 
-  code: string; 
-  expiresAt: number; 
-  attempts: number;
-  lastAttempt: number;
-}>();
+import { kv } from '@vercel/kv';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-const CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const CODE_EXPIRY_SECONDS = 10 * 60; // 10 minutes
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const MAX_ATTEMPTS = 3;
 
@@ -22,8 +14,10 @@ function generateCode(): string {
 }
 
 // Check rate limiting
-function checkRateLimit(email: string): boolean {
-  const stored = passcodeStore.get(email);
+async function checkRateLimit(email: string): Promise<boolean> {
+  const key = `rate_limit:${email}`;
+  const stored = await kv.get<{ attempts: number; lastAttempt: number }>(key);
+  
   if (!stored) return true;
 
   const now = Date.now();
@@ -31,6 +25,7 @@ function checkRateLimit(email: string): boolean {
   
   // Reset attempts if it's been more than an hour
   if (timeSinceLastAttempt > RATE_LIMIT_WINDOW_MS) {
+    await kv.del(key);
     return true;
   }
 
@@ -64,7 +59,7 @@ export default async function handler(
     }
 
     // Check rate limiting
-    if (!checkRateLimit(normalizedEmail)) {
+    if (!(await checkRateLimit(normalizedEmail))) {
       return res.status(429).json({ 
         error: 'Too many attempts. Please try again in 1 hour.' 
       });
@@ -72,16 +67,18 @@ export default async function handler(
 
     // Generate passcode
     const code = generateCode();
-    const expiresAt = Date.now() + CODE_EXPIRY_MS;
 
-    // Store passcode
-    const existing = passcodeStore.get(normalizedEmail);
-    passcodeStore.set(normalizedEmail, {
-      code,
-      expiresAt,
+    // Store passcode in Vercel KV (Redis) with expiration
+    const codeKey = `passcode:${normalizedEmail}`;
+    await kv.set(codeKey, code, { ex: CODE_EXPIRY_SECONDS });
+
+    // Update rate limiting
+    const rateLimitKey = `rate_limit:${normalizedEmail}`;
+    const existing = await kv.get<{ attempts: number }>(rateLimitKey);
+    await kv.set(rateLimitKey, {
       attempts: existing ? existing.attempts + 1 : 1,
       lastAttempt: Date.now(),
-    });
+    }, { ex: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) });
 
     // Send email via Resend
     await resend.emails.send({
@@ -198,14 +195,6 @@ export default async function handler(
         </html>
       `,
     });
-
-    // Clean up expired codes periodically
-    const now = Date.now();
-    for (const [email, data] of passcodeStore.entries()) {
-      if (data.expiresAt < now) {
-        passcodeStore.delete(email);
-      }
-    }
 
     return res.status(200).json({ 
       success: true,
