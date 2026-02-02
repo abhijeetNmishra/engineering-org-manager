@@ -1,0 +1,607 @@
+/* ===========================
+   n8n-Inspired Design System
+   =========================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root[data-theme="dark"] {
+    /* Primary Backgrounds - Deep Dark Navy */
+    --bg-primary: #0E0918;
+    --bg-secondary: #1a1425;
+    --bg-tertiary: #251d32;
+    --bg-glass: rgba(26, 20, 37, 0.7);
+
+    /* n8n Signature Gradients */
+    --gradient-cta: linear-gradient(135deg, #FF9B26 0%, #FF6D5A 100%);
+    --gradient-product: linear-gradient(135deg, #077AC7 0%, #6B21EF 100%);
+    --gradient-accent: linear-gradient(135deg, #FF6D5A 0%, #6B21EF 100%);
+
+    /* Typography Colors - Improved Contrast */
+    --text-primary: #FFFFFF;
+    --text-secondary: #E8E6EC;
+    --text-muted: #BDB5CC;
+    --text-accent: #FF9B26;
+
+    /* Borders & Outlines */
+    --border-primary: rgba(255, 255, 255, 0.12);
+    --border-glass: rgba(255, 255, 255, 0.1);
+    --border-accent: rgba(255, 155, 38, 0.4);
+
+    /* Shadows & Glows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+    --glow-cta: 0 4px 24px rgba(255, 155, 38, 0.3);
+    --glow-product: 0 4px 24px rgba(107, 33, 239, 0.3);
+
+    /* UI Element Colors */
+    --sider-bg: rgba(14, 9, 24, 0.98);
+    --sider-text: #FFFFFF;
+    --sider-text-muted: #D4CFDF;
+    --sider-hover: rgba(255, 255, 255, 0.08);
+
+    /* Background Gradient Opacity */
+    --gradient-opacity: 0.08;
+}
+
+:root[data-theme="light"] {
+    /* Light Mode Backgrounds */
+    --bg-primary: #FAFBFC;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F5F6F8;
+    --bg-glass: rgba(255, 255, 255, 0.85);
+
+    /* Gradients */
+    --gradient-cta: linear-gradient(135deg, #FF9B26 0%, #FF6D5A 100%);
+    --gradient-product: linear-gradient(135deg, #077AC7 0%, #6B21EF 100%);
+    --gradient-accent: linear-gradient(135deg, #FF6D5A 0%, #6B21EF 100%);
+
+    /* Typography Colors - Improved Contrast */
+    --text-primary: #1a1425;
+    --text-secondary: #3d3549;
+    --text-muted: #65616F;
+    --text-accent: #FF6D5A;
+
+    /* Borders & Outlines */
+    --border-primary: rgba(0, 0, 0, 0.1);
+    --border-glass: rgba(0, 0, 0, 0.08);
+    --border-accent: rgba(255, 109, 90, 0.3);
+
+    /* Shadows & Glows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
+    --glow-cta: 0 2px 16px rgba(255, 109, 90, 0.15);
+    --glow-product: 0 2px 16px rgba(107, 33, 239, 0.15);
+
+    /* UI Element Colors */
+    --sider-bg: #2A2136;
+    --sider-text: #FFFFFF;
+    --sider-text-muted: #D4CFDF;
+    --sider-hover: rgba(255, 255, 255, 0.1);
+
+    /* Background Gradient Opacity */
+    --gradient-opacity: 0.02;
+}
+
+/* ===========================
+   Base Styles
+   =========================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===========================
+   App Shell & Layout
+   =========================== */
+
+.app-shell {
+    height: 100%;
+    background: var(--bg-primary);
+    transition: background 0.3s ease;
+    position: relative;
+}
+
+/* Subtle gradient overlay - much reduced */
+.app-shell::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(ellipse 1200px 800px at 20% 0%, rgba(107, 33, 239, var(--gradient-opacity)), transparent 60%),
+        radial-gradient(ellipse 900px 600px at 90% 20%, rgba(255, 109, 90, var(--gradient-opacity)), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.ant-layout {
+    background: transparent !important;
+}
+
+.content {
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Sider styling */
+.ant-layout-sider {
+    background: var(--sider-bg) !important;
+    border-right: 1px solid var(--border-glass);
+}
+
+/* ===========================
+   Glass Morphism Components
+   =========================== */
+
+.glass {
+    background: var(--bg-glass) !important;
+    border: 1px solid var(--border-glass) !important;
+    backdrop-filter: blur(12px) saturate(150%);
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+}
+
+.glass:hover {
+    border-color: var(--border-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.header-glass {
+    background: var(--bg-glass) !important;
+    border-bottom: 1px solid var(--border-glass);
+    backdrop-filter: blur(12px) saturate(150%);
+    transition: all 0.3s ease;
+}
+
+/* ===========================
+   Typography
+   =========================== */
+
+.brand {
+    color: var(--text-primary);
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    font-size: 16px;
+    transition: color 0.3s ease;
+}
+
+.muted {
+    color: var(--text-muted);
+    transition: color 0.3s ease;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* ===========================
+   Sidebar (n8n style)
+   =========================== */
+
+.sider-title {
+    padding: 20px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 8px;
+}
+
+.ant-menu-dark {
+    background: transparent !important;
+}
+
+.ant-menu-dark .ant-menu-item {
+    border-radius: 8px;
+    margin: 4px 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--sider-text-muted);
+}
+
+.ant-menu-dark .ant-menu-item:hover {
+    background: var(--sider-hover) !important;
+    color: var(--sider-text);
+}
+
+.ant-menu-dark .ant-menu-item-selected {
+    background: var(--gradient-product) !important;
+    box-shadow: var(--glow-product);
+    font-weight: 600;
+    color: #FFFFFF !important;
+}
+
+.ant-menu-dark .ant-menu-item-selected::after {
+    display: none;
+}
+
+/* ===========================
+   Theme Toggle (Enhanced)
+   =========================== */
+
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-accent);
+    background: var(--gradient-cta);
+}
+
+.theme-toggle svg {
+    width: 20px;
+    height: 20px;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover svg {
+    transform: rotate(180deg);
+    filter: brightness(1.5) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+}
+
+/* ===========================
+   Buttons (n8n style)
+   =========================== */
+
+.ant-btn-primary {
+    background: var(--gradient-cta) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    box-shadow: var(--glow-cta) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    color: #FFFFFF !important;
+}
+
+.ant-btn-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 32px rgba(255, 155, 38, 0.4) !important;
+}
+
+.ant-btn {
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+    background: var(--bg-tertiary) !important;
+}
+
+.ant-btn:hover {
+    border-color: var(--border-accent) !important;
+    color: var(--text-primary) !important;
+    background: var(--bg-secondary) !important;
+}
+
+/* ===========================
+   Cards (n8n style)
+   =========================== */
+
+.ant-card {
+    background: var(--bg-glass) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px) saturate(150%) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.ant-card:hover {
+    border-color: var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.ant-card-head {
+    border-bottom: 1px solid var(--border-glass) !important;
+    color: var(--text-primary) !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    background: transparent !important;
+}
+
+.ant-card-body {
+    color: var(--text-secondary) !important;
+}
+
+/* ===========================
+   Tables (Enhanced)
+   =========================== */
+
+.ant-table {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+.ant-table-thead>tr>th {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-glass) !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.ant-table-tbody>tr>td {
+    border-color: var(--border-glass) !important;
+    color: var(--text-secondary) !important;
+    background: transparent !important;
+}
+
+.ant-table-tbody>tr:hover>td {
+    background: var(--bg-tertiary) !important;
+}
+
+/* ===========================
+   Form Elements
+   =========================== */
+
+.ant-input,
+.ant-select-selector,
+.ant-input-number {
+    background: var(--bg-tertiary) !important;
+    border-color: var(--border-glass) !important;
+    color: var(--text-primary) !important;
+}
+
+.ant-input:focus,
+.ant-select-selector:focus,
+.ant-input-number:focus {
+    border-color: var(--border-accent) !important;
+}
+
+.ant-select-dropdown {
+    background: var(--bg-secondary) !important;
+    border-color: var(--border-glass) !important;
+}
+
+.ant-select-item {
+    color: var(--text-secondary) !important;
+}
+
+.ant-select-item-option-selected {
+    background: var(--bg-tertiary) !important;
+}
+
+.ant-form-item-label>label {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* ===========================
+   Tags (n8n style)
+   =========================== */
+
+.ant-tag {
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 6px !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+    padding: 2px 10px !important;
+    font-size: 12px !important;
+}
+
+/* Tree Component */
+.ant-tree {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+.ant-tree .ant-tree-node-content-wrapper {
+    color: var(--text-secondary) !important;
+}
+
+.ant-tree .ant-tree-node-content-wrapper:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+.ant-tree .ant-tree-node-selected .ant-tree-node-content-wrapper {
+    background: var(--bg-tertiary) !important;
+}
+
+/* ===========================
+   ReactFlow Org Chart Enhancements
+   =========================== */
+
+.react-flow {
+    background: transparent !important;
+}
+
+.react-flow__background {
+    background-color: transparent !important;
+}
+
+/* Dotted grid for org chart canvas - theme aware */
+.react-flow__pane {
+    background-image: radial-gradient(circle, var(--border-glass) 1px, transparent 1px) !important;
+    background-size: 20px 20px !important;
+}
+
+.react-flow__controls {
+    background: var(--bg-glass) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.react-flow__controls button {
+    background: transparent !important;
+    border-color: var(--border-glass) !important;
+    color: var(--text-primary) !important;
+    transition: all 0.2s ease !important;
+}
+
+.react-flow__controls button:hover {
+    background: var(--gradient-product) !important;
+    transform: scale(1.1);
+}
+
+/* ===========================
+   Alerts
+   =========================== */
+
+.ant-alert {
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 8px !important;
+}
+
+.ant-alert-message {
+    color: var(--text-primary) !important;
+}
+
+.ant-alert-description {
+    color: var(--text-secondary) !important;
+}
+
+/* ===========================
+   Drawer
+   =========================== */
+
+.ant-drawer-content {
+    background: var(--bg-secondary) !important;
+}
+
+.ant-drawer-header {
+    background: var(--bg-tertiary) !important;
+    border-bottom: 1px solid var(--border-glass) !important;
+}
+
+.ant-drawer-title {
+    color: var(--text-primary) !important;
+}
+
+.ant-drawer-close {
+    color: var(--text-primary) !important;
+}
+
+/* ===========================
+   Statistics
+   =========================== */
+
+.ant-statistic-title {
+    color: var(--text-muted) !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.ant-statistic-content {
+    color: var(--text-primary) !important;
+    font-weight: 800 !important;
+}
+
+/* ===========================
+   List
+   =========================== */
+
+.ant-list-item {
+    border-bottom-color: var(--border-glass) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* ===========================
+   Descriptions
+   =========================== */
+
+.ant-descriptions-item-label {
+    color: var(--text-muted) !important;
+    font-weight: 600 !important;
+}
+
+.ant-descriptions-item-content {
+    color: var(--text-secondary) !important;
+}
+
+.ant-descriptions-bordered .ant-descriptions-item-label,
+.ant-descriptions-bordered .ant-descriptions-item-content {
+    border-color: var(--border-glass) !important;
+}
+
+/* ===========================
+   Scrollbars (Custom)
+   =========================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-accent);
+}
+
+/* ===========================
+   Animations
+   =========================== */
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.glass,
+.ant-card {
+    animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===========================
+   Utility Classes
+   =========================== */
+
+.card-tight .ant-card-body {
+    padding: 16px;
+}
