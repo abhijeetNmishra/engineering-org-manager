@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Layout, Menu } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Layout, Menu, Button } from "antd";
 import {
   HomeOutlined,
   TeamOutlined,
@@ -7,6 +7,8 @@ import {
   DashboardOutlined,
   NodeIndexOutlined,
   ImportOutlined,
+  MenuOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import {
@@ -27,9 +29,26 @@ type RouteKey = "home" | "dashboard" | "people" | "modules" | "orgchart" | "data
 
 function AppShell() {
   const [route, setRoute] = useState<RouteKey>("home");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // Apply theme to document
   useThemeEffect();
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Close menu when switching to desktop
+      if (!mobile) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const menuItems: MenuProps["items"] = useMemo(
     () => [
@@ -43,33 +62,92 @@ function AppShell() {
     []
   );
 
+  const handleMenuClick = (e: { key: string }) => {
+    setRoute(e.key as RouteKey);
+    // Close mobile menu after navigation
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   return (
     <Layout className="app-shell">
       <ThemeToggle />
 
-      <Sider width={252} theme="dark" style={{ background: "rgba(8,12,20,0.85)" }}>
+      {/* Mobile backdrop */}
+      {isMobile && mobileMenuOpen && (
+        <div
+          className="mobile-sidebar-backdrop active"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <Sider
+        width={252}
+        theme="dark"
+        style={{ background: "rgba(8,12,20,0.85)" }}
+        className={isMobile && mobileMenuOpen ? 'mobile-open' : ''}
+      >
         <div className="sider-title">
           <div className="brand">Shipt Marketplace</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
             Org Manager • Demo
           </div>
+          {/* Close button for mobile */}
+          {isMobile && mobileMenuOpen && (
+            <Button
+              type="text"
+              icon={<CloseOutlined />}
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                color: 'white',
+                fontSize: 18,
+              }}
+            />
+          )}
         </div>
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[route]}
           items={menuItems}
-          onClick={(e) => setRoute(e.key as RouteKey)}
+          onClick={handleMenuClick}
           style={{ background: "transparent" }}
         />
       </Sider>
 
       <Layout>
-        <Header className="header-glass" style={{ padding: "0 16px", display: "flex", alignItems: "center" }}>
-          <div className="brand">Marketplace Engineering</div>
-          <div className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>
-            Vertical + Horizontal accountability • Modules • Ownership • Spans
+        <Header className="header-glass" style={{ padding: "0 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Hamburger menu for mobile */}
+          {isMobile && (
+            <Button
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={toggleMobileMenu}
+              className="hamburger-menu"
+              style={{
+                fontSize: 20,
+                color: 'var(--text-primary)',
+              }}
+            />
+          )}
+
+          <div className="brand" style={{ flex: isMobile ? 1 : 'none' }}>
+            {isMobile ? "MP Engineering" : "Marketplace Engineering"}
           </div>
+
+          {!isMobile && (
+            <div className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>
+              Vertical + Horizontal accountability • Modules • Ownership • Spans
+            </div>
+          )}
         </Header>
 
         <Content className="content">

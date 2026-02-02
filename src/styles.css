@@ -530,7 +530,7 @@ body {
 
 /* ===========================
    List
-   =========================== */
+   ============================= */
 
 .ant-list-item {
     border-bottom-color: var(--border-glass) !important;
@@ -604,4 +604,216 @@ body {
 
 .card-tight .ant-card-body {
     padding: 16px;
+}
+
+/* ===========================
+   MOBILE RESPONSIVENESS
+   =========================== */
+
+/* Mobile Sidebar Backdrop */
+.mobile-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 998;
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.mobile-sidebar-backdrop.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Hamburger Menu Button */
+.hamburger-menu {
+    display: none;
+}
+
+/* Mobile Breakpoint: < 768px */
+@media (max-width: 767px) {
+
+    /* Show hamburger menu */
+    .hamburger-menu {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        background: var(--bg-glass);
+        border: 1px solid var(--border-glass);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .hamburger-menu:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--border-accent);
+    }
+
+    /* Hide sidebar by default on mobile */
+    .ant-layout-sider {
+        position: fixed !important;
+        left: -250px;
+        top: 0;
+        bottom: 0;
+        z-index: 999;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+    }
+
+    /* Show sidebar when open */
+    .ant-layout-sider.mobile-open {
+        left: 0;
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* Adjust main content padding */
+    .content {
+        padding: 12px !important;
+    }
+
+    /* Responsive Typography */
+    h1 {
+        font-size: 2rem !important;
+    }
+
+    h2 {
+        font-size: 1.5rem !important;
+    }
+
+    h3 {
+        font-size: 1.25rem !important;
+    }
+
+    .hero-title {
+        font-size: 2.5rem !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Stack Grid Layouts */
+    .ant-row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Responsive Cards */
+    .ant-card {
+        margin-bottom: 12px;
+    }
+
+    .glass-card {
+        padding: 12px !important;
+    }
+
+    /* Touch-Friendly Buttons */
+    .ant-btn {
+        min-height: 44px;
+        padding: 10px 16px !important;
+        font-size: 14px !important;
+    }
+
+    /* Stack Button Groups */
+    .ant-space-horizontal {
+        display: flex;
+        flex-direction: column !important;
+        width: 100%;
+        gap: 8px !important;
+    }
+
+    .ant-space-horizontal>.ant-space-item {
+        width: 100%;
+        margin: 0 !important;
+    }
+
+    .ant-space-horizontal .ant-btn,
+    .ant-space-horizontal .ant-input-search,
+    .ant-space-horizontal .ant-select {
+        width: 100% !important;
+    }
+
+    /* Responsive Tables */
+    .ant-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .ant-table {
+        min-width: 600px;
+    }
+
+    .ant-table-thead>tr>th {
+        font-size: 11px !important;
+        padding: 8px !important;
+    }
+
+    .ant-table-tbody>tr>td {
+        font-size: 13px !important;
+        padding: 8px !important;
+    }
+
+    /* Responsive Forms */
+    .ant-form-item {
+        margin-bottom: 16px !important;
+    }
+
+    /* Stat Cards */
+    .ant-statistic-title {
+        font-size: 11px !important;
+    }
+
+    .ant-statistic-content {
+        font-size: 24px !important;
+    }
+
+    /* Theme Toggle Position */
+    .theme-toggle {
+        top: 12px;
+        right: 12px;
+        width: 40px;
+        height: 40px;
+    }
+
+    /* Responsive Search */
+    .ant-input-search {
+        font-size: 14px !important;
+    }
+
+    /* Mobile Header */
+    .ant-layout-header {
+        padding: 0 12px !important;
+        height: 56px !important;
+        line-height: 56px !important;
+    }
+}
+
+/* Tablet Breakpoint: 768px - 1023px */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .content {
+        padding: 20px !important;
+    }
+
+    /* 2-column layouts where appropriate */
+    .ant-col-md-12 {
+        max-width: 50% !important;
+        flex: 0 0 50% !important;
+    }
+}
+
+/* Large Desktop: 1440px+ */
+@media (min-width: 1440px) {
+    .content {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
 }
