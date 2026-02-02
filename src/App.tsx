@@ -9,6 +9,7 @@ import {
   ImportOutlined,
   MenuOutlined,
   CloseOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import {
@@ -19,8 +20,10 @@ import {
   OrgChart,
   ImportExport,
 } from "./pages";
+import { Login } from "./pages/Login";
 import { OrgStoreProvider } from "./state/orgStore";
 import { useThemeEffect } from "./state/themeStore";
+import { useAuthStore } from "./state/authStore";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 const { Header, Sider, Content } = Layout;
@@ -31,6 +34,10 @@ function AppShell() {
   const [route, setRoute] = useState<RouteKey>("home");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Auth store
+  const logout = useAuthStore(state => state.logout);
+  const user = useAuthStore(state => state.user);
 
   // Apply theme to document
   useThemeEffect();
@@ -144,9 +151,19 @@ function AppShell() {
           </div>
 
           {!isMobile && (
-            <div className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>
-              Vertical + Horizontal accountability • Modules • Ownership • Spans
-            </div>
+            <>
+              <div className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>
+                Vertical + Horizontal accountability • Modules • Ownership • Spans
+              </div>
+              <Button
+                type="text"
+                icon={<LogoutOutlined />}
+                onClick={logout}
+                style={{ color: 'var(--text-primary)', marginLeft: '12px' }}
+              >
+                {user?.email || "Logout"}
+              </Button>
+            </>
           )}
         </Header>
 
@@ -166,6 +183,28 @@ function AppShell() {
 }
 
 export default function App() {
+  const { isAuthenticated, checkAuth } = useAuthStore();
+
+  // Skip auth in local development (when using npm run dev)
+  const isDev = import.meta.env.DEV;
+
+  // Check auth on mount and after storage changes
+  useEffect(() => {
+    if (!isDev) {
+      checkAuth();
+    }
+  }, [checkAuth, isDev]);
+
+  // Show login page if not authenticated (only in production)
+  if (!isDev && (!isAuthenticated || !checkAuth())) {
+    return (
+      <OrgStoreProvider>
+        <Login />
+      </OrgStoreProvider>
+    );
+  }
+
+  // Show authenticated app
   return (
     <OrgStoreProvider>
       <AppShell />
