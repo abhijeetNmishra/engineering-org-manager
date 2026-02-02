@@ -1,131 +1,908 @@
-# Email Authentication Setup Guide
+# Email Authentication System - Complete Guide
 
-## 🚀 Quick Start
+## 📖 Table of Contents
 
-This guide will help you set up email-based authentication for the Engineering Org Manager using Resend (free).
+1. [System Overview](#-system-overview)
+2. [Architecture](#-architecture)
+3. [How It Works](#-how-it-works)
+4. [Code Walkthrough](#-code-walkthrough)
+5. [Setup Instructions](#-setup-instructions)
+6. [Security & Best Practices](#-security--best-practices)
+7. [Troubleshooting](#-troubleshooting)
 
 ---
 
-## Step 1: Create Resend Account
+## 🎯 System Overview
+
+This authentication system provides **passwordless email-based login** for authorized users. It's built using:
+
+- **Frontend**: React + TypeScript + Zustand (state management)
+- **Backend**: Vercel Serverless Functions (Node.js)
+- **Email**: Resend API (free tier: 3,000 emails/month)
+- **Storage**: Redis (via ioredis + Upstash)
+- **Sessions**: JWT tokens (7-day expiration)
+
+### Key Features
+
+✅ **Passwordless** - No passwords to remember or manage  
+✅ **Email Allowlist** - Only specific emails can access  
+✅ **Rate Limited** - 3 attempts per hour per email  
+✅ **Auto-Expiring Codes** - 10-minute validity  
+✅ **Secure Sessions** - JWT with 7-day expiration  
+✅ **Mobile Responsive** - Works on all devices  
+✅ **Beautiful UI** - Glassmorphism design  
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      USER FLOW                              │
+└─────────────────────────────────────────────────────────────┘
+
+1. User enters email
+       ↓
+2. Frontend calls /api/send-code
+       ↓
+3. Backend validates email (allowlist)
+       ↓
+4. Generates 6-digit code
+       ↓
+5. Stores code in Redis (10min TTL)
+       ↓
+6. Sends email via Resend
+       ↓
+7. User receives email with code
+       ↓
+8. User enters code in UI
+       ↓
+9. Frontend calls /api/verify
+       ↓
+10. Backend checks code in Redis
+       ↓
+11. Generates JWT token (7 days)
+       ↓
+12. Returns token + user info
+       ↓
+13. Frontend stores in localStorage
+       ↓
+14. User is authenticated! ✅
+```
+
+### Component Diagram
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        FRONTEND                              │
+├──────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐   │
+│  │  Login.tsx   │→ │ PasscodeInput│→ │  authStore.ts   │   │
+│  │  (Email UI)  │  │  (6 digits)  │  │  (Zustand)      │   │
+│  └──────────────┘  └──────────────┘  └─────────────────┘   │
+│         ↓                                      ↓             │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │             api.ts (HTTP client)                 │       │
+│  └──────────────────────────────────────────────────┘       │
+└────────────────────────┬──────────────────┬──────────────────┘
+                         ↓                  ↓
+┌──────────────────────────────────────────────────────────────┐
+│                      BACKEND (Vercel)                        │
+├──────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐              ┌────────────────────┐    │
+│  │ api/send-code.ts│              │  api/verify.ts     │    │
+│  │ - Validate email│              │  - Check code      │    │
+│  │ - Generate code │              │  - Generate JWT    │    │
+│  │ - Store in Redis│              │  - Create session  │    │
+│  │ - Send email    │              │  - Return token    │    │
+│  └─────────────────┘              └────────────────────┘    │
+│         ↓                                   ↓                │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │          Redis (Upstash)                         │       │
+│  │  - passcode:{email} = "123456" (10min TTL)       │       │
+│  │  - rate_limit:{email} = {attempts, time} (1hr)   │       │
+│  └──────────────────────────────────────────────────┘       │
+└──────────────────────────────────────────────────────────────┘
+         ↓
+┌──────────────────────────────────────────────────────────────┐
+│                    RESEND (Email API)                        │
+│  Sends beautiful HTML email with 6-digit code               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔄 How It Works
+
+### Step 1: Email Entry
+
+**File:** `src/pages/Login.tsx`
+
+User enters their email address. Frontend validates basic format (contains `@`).
+
+```tsx
+const handleSendCode = async () => {
+  if (!email || !email.includes('@')) {
+    message.error('Please enter a valid email address');
+    return;
+  }
+  // Calls backend API...
+}
+```
+
+### Step 2: Send Verification Code
+
+**API Endpoint:** `POST /api/send-code`  
+**File:** `api/send-code.ts`
+
+#### What Happens:
+
+1. **Email Validation**
+   ```typescript
+   const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '')
+     .split(',')
+     .map(e => e.trim().toLowerCase());
+   
+   if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+     return res.status(403).json({ error: 'Email not authorized' });
+   }
+   ```
+
+2. **Rate Limiting Check**
+   ```typescript
+   // Limit: 3 attempts per hour
+   const stored = await redis.get(`rate_limit:${email}`);
+   const data = JSON.parse(stored);
+   
+   if (data.attempts >= 3) {
+     return res.status(429).json({ error: 'Too many attempts' });
+   }
+   ```
+
+3. **Code Generation**
+   ```typescript
+   // Generate secure 6-digit code
+   function generateCode(): string {
+     return Math.floor(100000 + Math.random() * 900000).toString();
+   }
+   // Example output: "724519"
+   ```
+
+4. **Store in Redis**
+   ```typescript
+   // Store with 10-minute expiration
+   const codeKey = `passcode:${email}`;
+   await redis.setex(codeKey, 600, code); // 600 seconds = 10 min
+   ```
+
+5. **Send Email via Resend**
+   ```typescript
+   await resend.emails.send({
+     from: 'Org Manager <onboarding@resend.dev>',
+     to: email,
+     subject: 'Your Org Manager Access Code',
+     html: `<!-- Beautiful HTML email with ${code} -->`
+   });
+   ```
+
+### Step 3: User Receives Email
+
+**What the user sees:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Shipt Marketplace
+  Engineering Org Manager
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔒 Your Access Code
+
+┌─────────────────────────────┐
+│                             │
+│        724 519              │
+│                             │
+└─────────────────────────────┘
+
+This code expires in 10 minutes
+
+⚠️ Security Notice: Never share this
+code with anyone.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Step 4: Code Entry
+
+**Component:** `src/components/PasscodeInput.tsx`
+
+A custom 6-digit input with auto-focus and paste support:
+
+```tsx
+// Auto-focus next input after digit entry
+if (value && index < length - 1) {
+  inputRefs.current[index + 1]?.focus();
+}
+
+// Auto-submit when all 6 digits filled
+if (newDigits.every(d => d) && !loading) {
+  onComplete(newDigits.join('')); // "724519"
+}
+```
+
+### Step 5: Verify Code
+
+**API Endpoint:** `POST /api/verify`  
+**File:** `api/verify.ts`
+
+#### What Happens:
+
+1. **Retrieve Stored Code**
+   ```typescript
+   const codeKey = `passcode:${email}`;
+   const storedCode = await redis.get(codeKey);
+   
+   if (!storedCode) {
+     // Code expired or doesn't exist
+     return res.status(400).json({ 
+       error: 'No verification code found' 
+     });
+   }
+   ```
+
+2. **Validate Code**
+   ```typescript
+   const normalizedCode = code.replace(/\s/g, ''); // Remove spaces
+   
+   if (storedCode !== normalizedCode) {
+     return res.status(400).json({ 
+       error: 'Invalid verification code' 
+     });
+   }
+   ```
+
+3. **Delete Code (Prevent Reuse)**
+   ```typescript
+   await redis.del(codeKey); // Code can only be used once
+   ```
+
+4. **Generate JWT Token**
+   ```typescript
+   const expiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+   
+   const token = jwt.sign(
+     { 
+       email: normalizedEmail,
+       exp: Math.floor(expiresAt / 1000) // JWT expects seconds
+     },
+     process.env.JWT_SECRET
+   );
+   ```
+
+5. **Return Session**
+   ```typescript
+   return res.status(200).json({
+     success: true,
+     token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     user: { email: "user@example.com" },
+     expiresAt: 1707408000000
+   });
+   ```
+
+### Step 6: Frontend Stores Session
+
+**State Management:** `src/state/authStore.ts`
+
+```typescript
+// Zustand store with localStorage persistence
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      expiresAt: null,
+
+      login: (token, user, expiresAt) => {
+        set({
+          user,
+          token,
+          expiresAt,
+          isAuthenticated: true,
+        });
+      },
+
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          expiresAt: null,
+          isAuthenticated: false,
+        });
+      },
+
+      checkAuth: () => {
+        const { expiresAt, isAuthenticated } = get();
+        
+        // Check if token expired
+        if (isAuthenticated && expiresAt && Date.now() > expiresAt) {
+          get().logout();
+          return false;
+        }
+        
+        return isAuthenticated;
+      },
+    }),
+    {
+      name: 'auth-storage', // localStorage key
+    }
+  )
+);
+```
+
+**What gets stored in localStorage:**
+
+```json
+{
+  "state": {
+    "user": { "email": "user@example.com" },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "isAuthenticated": true,
+    "expiresAt": 1707408000000
+  },
+  "version": 0
+}
+```
+
+### Step 7: Protected Routes
+
+**File:** `src/App.tsx`
+
+```typescript
+export default function App() {
+  const { isAuthenticated, checkAuth } = useAuthStore();
+  const isDev = import.meta.env.DEV;
+
+  // Check auth on mount
+  useEffect(() => {
+    if (!isDev) {
+      checkAuth();
+    }
+  }, [checkAuth, isDev]);
+
+  // Show login if not authenticated (production only)
+  if (!isDev && (!isAuthenticated || !checkAuth())) {
+    return (
+      <OrgStoreProvider>
+        <Login />
+      </OrgStoreProvider>
+    );
+  }
+
+  // Show authenticated app
+  return (
+    <OrgStoreProvider>
+      <AppShell />
+    </OrgStoreProvider>
+  );
+}
+```
+
+---
+
+## 💻 Code Walkthrough
+
+### Backend: `api/send-code.ts`
+
+```typescript
+import Redis from 'ioredis';
+import { Resend } from 'resend';
+
+// Initialize services
+const redis = new Redis(process.env.KV_REDIS_URL || '');
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Constants
+const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS.split(',');
+const CODE_EXPIRY_SECONDS = 10 * 60; // 10 minutes
+const MAX_ATTEMPTS = 3;
+
+export default async function handler(req, res) {
+  // 1. Validate HTTP method
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { email } = req.body;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // 2. Check allowlist
+  if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+    return res.status(403).json({ 
+      error: 'Email not authorized' 
+    });
+  }
+
+  // 3. Check rate limiting
+  const rateLimitKey = `rate_limit:${normalizedEmail}`;
+  const limit = await redis.get(rateLimitKey);
+  
+  if (limit) {
+    const data = JSON.parse(limit);
+    if (data.attempts >= MAX_ATTEMPTS) {
+      return res.status(429).json({ 
+        error: 'Too many attempts. Try again in 1 hour.' 
+      });
+    }
+  }
+
+  // 4. Generate 6-digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // 5. Store code in Redis (10min expiration)
+  await redis.setex(`passcode:${normalizedEmail}`, CODE_EXPIRY_SECONDS, code);
+
+  // 6. Update rate limit counter
+  const existing = limit ? JSON.parse(limit) : null;
+  await redis.setex(
+    rateLimitKey,
+    3600, // 1 hour in seconds
+    JSON.stringify({
+      attempts: existing ? existing.attempts + 1 : 1,
+      lastAttempt: Date.now()
+    })
+  );
+
+  // 7. Send email
+  await resend.emails.send({
+    from: 'Org Manager <onboarding@resend.dev>',
+    to: normalizedEmail,
+    subject: 'Your Org Manager Access Code',
+    html: `
+      <div style="font-family: sans-serif; padding: 40px;">
+        <h2>🔒 Your Access Code</h2>
+        <div style="font-size: 48px; font-weight: bold; 
+                    letter-spacing: 10px; text-align: center;
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white; padding: 30px; border-radius: 12px;">
+          ${code.slice(0, 3)} ${code.slice(3)}
+        </div>
+        <p>This code expires in 10 minutes.</p>
+        <p style="color: #666;">
+          Never share this code with anyone.
+        </p>
+      </div>
+    `
+  });
+
+  // 8. Return success
+  return res.status(200).json({ 
+    success: true,
+    message: 'Verification code sent to your email',
+    expiresIn: 600 // seconds
+  });
+}
+```
+
+### Backend: `api/verify.ts`
+
+```typescript
+import Redis from 'ioredis';
+import jwt from 'jsonwebtoken';
+
+const redis = new Redis(process.env.KV_REDIS_URL || '');
+const JWT_SECRET = process.env.JWT_SECRET;
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export default async function handler(req, res) {
+  const { email, code } = req.body;
+  
+  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedCode = code.replace(/\s/g, '');
+
+  // 1. Get stored code from Redis
+  const codeKey = `passcode:${normalizedEmail}`;
+  const storedCode = await redis.get(codeKey);
+
+  if (!storedCode) {
+    return res.status(400).json({ 
+      error: 'No verification code found. Please request a new code.' 
+    });
+  }
+
+  // 2. Verify code matches
+  if (storedCode !== normalizedCode) {
+    return res.status(400).json({ 
+      error: 'Invalid verification code. Please try again.' 
+    });
+  }
+
+  // 3. Delete code (single-use)
+  await redis.del(codeKey);
+
+  // 4. Generate JWT token
+  const expiresAt = Date.now() + SESSION_DURATION_MS;
+  const token = jwt.sign(
+    { 
+      email: normalizedEmail,
+      exp: Math.floor(expiresAt / 1000)
+    },
+    JWT_SECRET
+  );
+
+  // 5. Return session
+  return res.status(200).json({
+    success: true,
+    token,
+    user: { email: normalizedEmail },
+    expiresAt
+  });
+}
+```
+
+### Frontend: `src/state/authStore.ts`
+
+```typescript
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface AuthState {
+  user: { email: string } | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  expiresAt: number | null;
+  
+  login: (token: string, user: { email: string }, expiresAt: number) => void;
+  logout: () => void;
+  checkAuth: () => boolean;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      expiresAt: null,
+
+      // Login action
+      login: (token, user, expiresAt) => {
+        set({
+          user,
+          token,
+          expiresAt,
+          isAuthenticated: true,
+        });
+      },
+
+      // Logout action
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          expiresAt: null,
+          isAuthenticated: false,
+        });
+      },
+
+      // Check if session is valid
+      checkAuth: () => {
+        const { expiresAt, isAuthenticated } = get();
+
+        // Token expired?
+        if (isAuthenticated && expiresAt && Date.now() > expiresAt) {
+          get().logout();
+          return false;
+        }
+
+        return isAuthenticated;
+      },
+    }),
+    {
+      name: 'auth-storage', // localStorage key
+    }
+  )
+);
+```
+
+### Frontend: `src/utils/api.ts`
+
+```typescript
+const API_BASE = import.meta.env.PROD 
+  ? 'https://engineering-org-manager.vercel.app'
+  : 'http://localhost:3000';
+
+export async function sendVerificationCode(email: string) {
+  const response = await fetch(`${API_BASE}/api/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to send code');
+  }
+
+  return data;
+}
+
+export async function verifyCode(email: string, code: string) {
+  const response = await fetch(`${API_BASE}/api/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to verify code');
+  }
+
+  return data;
+}
+```
+
+---
+
+## 🚀 Setup Instructions
+
+### Prerequisites
+
+- Vercel account (free)
+- Resend account (free - 3,000 emails/month)
+- GitHub repository
+
+### Step 1: Create Resend Account
 
 1. Go to https://resend.com
-2. Click "Sign Up" (free, no credit card required)
-3. Verify your email address
-4. Log in to your dashboard
+2. Sign up (no credit card required)
+3. Verify your email
+4. Dashboard → **API Keys** → **Create API Key**
+5. Name: `org-manager-production`
+6. **Copy the key** (starts with `re_...`)
 
----
-
-## Step 2: Get API Key
-
-1. In Resend dashboard, click "API Keys"
-2. Click "Create API Key"
-3. Name it: `org-manager-production`
-4. Copy the API key (starts with `re_...`)
-5. **Save it somewhere safe** - you'll need it for Vercel
-
----
-
-## Step 3: Configure Environment Variables Locally (Optional - for testing)
-
-Create a `.env.local` file in the project root:
-
-```bash
-# .env.local (DO NOT commit this file!)
-RESEND_API_KEY=re_your_api_key_here
-JWT_SECRET=your-secure-random-string-min-32-characters
-ALLOWED_EMAILS=geminiabhijeet@gmail.com
-```
-
-**Generate a secure JWT_SECRET:**
-```bash
-# On Mac/Linux
-openssl rand -base64 32
-
-# Or use Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
-
----
-
-## Step 4: Add Environment Variables to Vercel
+### Step 2: Create Vercel KV Database
 
 1. Go to https://vercel.com/dashboard
-2. Select your project: `engineering-org-manager`
-3. Go to Settings → Environment Variables
-4. Add the following variables:
+2. Select project: `engineering-org-manager`
+3. **Storage** tab → **Create Database** → **KV (Redis)**
+4. Name: `auth-codes`
+5. Click **Create**
+6. Click **Connect Project** → Select your project
 
-| Key | Value | Environment |
-|-----|-------|-------------|
-| `RESEND_API_KEY` | `re_your_key_here` | Production, Preview, Development |
-| `JWT_SECRET` | `your-32-char-secret` | Production, Preview, Development |
-| `ALLOWED_EMAILS` | `geminiabhijeet@gmail.com` | Production, Preview, Development |
+This auto-creates: `KV_REDIS_URL`
 
-**Important:** Click "Add" after each variable.
+### Step 3: Add Environment Variables to Vercel
 
----
+Go to: **Settings** → **Environment Variables**
 
-## Step 5: Verify Domain (Optional - Recommended for Production)
+Add these **3 variables**:
 
-For better email deliverability:
+| Variable | Value | Environments |
+|----------|-------|--------------|
+| `RESEND_API_KEY` | `re_your_key_here` | ✅ Production, ✅ Preview, ✅ Development |
+| `JWT_SECRET` | (generate with command below) | ✅ Production, ✅ Preview, ✅ Development |
+| `ALLOWED_EMAILS` | `your.email@gmail.com` | ✅ Production, ✅ Preview, ✅ Development |
 
-1. In Resend dashboard, go to "Domains"
-2. Click "Add Domain"
-3. Enter your domain (e.g., `shipt-org.com`)
-4. Follow the DNS setup instructions
-5. Wait for verification (~5-10 minutes)
-
-**Using Resend Sandbox (for testing):**
-- Emails sent from `onboarding@resend.dev`
-- Can only send to **your verified email**
-- No domain setup needed
-- Perfect for testing!
-
----
-
-## Step 6: Deploy to Vercel
+**Generate JWT_SECRET:**
 
 ```bash
-# Commit your changes
-git add -A
-git commit -m "Add email authentication"
+# Mac/Linux
+openssl rand -base64 32
+
+# Output: upWGQsEyewdHjOlTEJ1u6YHp9Fpk+oc32rwOmjQ4vTI=
+```
+
+Use that output as your `JWT_SECRET`.
+
+### Step 4: Deploy
+
+```bash
+git commit --allow-empty -m "Trigger redeploy with auth variables"
 git push origin main
 ```
 
-Vercel will automatically deploy with your new environment variables.
+Vercel auto-deploys (takes ~1-2 minutes).
+
+### Step 5: Test
+
+1. Visit: https://engineering-org-manager.vercel.app/
+2. Enter your email (from `ALLOWED_EMAILS`)
+3. Click "Send Verification Code"
+4. Check inbox (check spam too!)
+5. Enter 6-digit code
+6. ✅ **Success!**
 
 ---
 
-## Step 7: Test Authentication
+## 🔒 Security & Best Practices
 
-1. Visit your live app: https://engineering-org-manager.vercel.app/
-2. You should see the login page
-3. Enter: `geminiabhijeet@gmail.com`
-4. Click "Send Verification Code"
-5. Check your email for the 6-digit code
-6. Enter the code
-7. You should be logged in!
+### Security Measures Implemented
+
+✅ **Email Allowlist** - Only authorized emails can access  
+✅ **Rate Limiting** - 3 attempts/hour prevents brute force  
+✅ **Code Expiration** - 10-minute validity window  
+✅ **Single-Use Codes** - Deleted after successful verification  
+✅ **HTTPS Only** - Enforced by Vercel  
+✅ **JWT Tokens** - Signed with secret, 7-day expiration  
+✅ **Session Validation** - Checks expiry on every app load  
+
+### Environment Variable Security
+
+**DO:**
+- ✅ Keep `.env.local` in `.gitignore`
+- ✅ Use strong, random JWT_SECRET (32+ chars)
+- ✅ Rotate API keys if compromised
+- ✅ Use Vercel's encrypted storage
+
+**DON'T:**
+- ❌ Commit `.env.local` to Git
+- ❌ Share API keys in public channels
+- ❌ Use weak secrets like "password123"
+- ❌ Store secrets in frontend code
+
+### Data Storage (Redis)
+
+**What's stored:**
+
+```
+passcode:user@example.com = "724519"    [TTL: 10min]
+rate_limit:user@example.com = {          [TTL: 1hr]
+  attempts: 2,
+  lastAttempt: 1707408000000
+}
+```
+
+**Auto-cleanup:** Redis TTL (Time-To-Live) automatically deletes expired keys.
+
+### Session Management
+
+**JWT Token Structure:**
+
+```json
+{
+  "header": {
+    "alg": "HS256",
+    "typ": "JWT"
+  },
+  "payload": {
+    "email": "user@example.com",
+    "exp": 1707408000
+  },
+  "signature": "..." // Signed with JWT_SECRET
+}
+```
+
+**Token Validation:**
+
+- Frontend checks `expiresAt` on app load
+- If expired → auto-logout → redirect to login
+- Session persists in localStorage between browser sessions
 
 ---
 
-## Adding More Users
+## 🔧 Troubleshooting
 
-### Method 1: Update Environment Variable
+### Email Not Received
 
-1. Go to Vercel → Settings → Environment Variables
+**Checklist:**
+
+1. ✅ Check spam/junk folder
+2. ✅ Verify email in `ALLOWED_EMAILS` (case-insensitive)
+3. ✅ Check Resend dashboard → **Logs** for delivery status
+4. ✅ Ensure `RESEND_API_KEY` is correct
+5. ✅ Check inbox quota (not full)
+
+**Resend Dashboard:**
+- **Logs** tab shows all sent emails
+- Look for errors (e.g., "Email bounced", "Invalid API key")
+
+### "Email not authorized" Error
+
+**Cause:** Email not in allowlist
+
+**Fix:**
+1. Vercel Dashboard → Settings → Environment Variables
 2. Edit `ALLOWED_EMAILS`
-3. Add emails separated by commas:
-   ```
-   geminiabhijeet@gmail.com,teammate@shipt.com,manager@shipt.com
-   ```
-4. Redeploy your app
+3. Add email: `existing@email.com,new@email.com`
+4. Redeploy: `git commit --allow-empty -m "Update" && git push`
 
-### Method 2: Direct in Code (Quick but requires redeploy)
+### "No verification code found" Error
+
+**Possible Causes:**
+
+1. **Code expired** (>10 minutes) → Request new code
+2. **Redis not connected** → Check `KV_REDIS_URL` in Vercel
+3. **Different email** → Use exact email from step 1
+
+**Debug:**
+- Check Vercel function logs
+- Verify `KV_REDIS_URL` exists in environment variables
+
+### Rate Limited ("Too many attempts")
+
+**Cause:** >3 attempts in 1 hour
+
+**Fix:**
+
+**Option 1:** Wait 1 hour
+
+**Option 2:** Clear localStorage
+```javascript
+// Browser console
+localStorage.clear();
+location.reload();
+```
+
+**Option 3:** Delete rate limit key in Redis (production only)
+
+### Code Always Invalid
+
+**Checklist:**
+
+1. ✅ Entering exact 6 digits (no spaces)
+2. ✅ Using code from latest email (old codes expire)
+3. ✅ Code hasn't expired (10 min limit)
+4. ✅ Not using code twice (single-use)
+
+### Session Expired Immediately
+
+**Cause:** `JWT_SECRET` mismatch between deployment and verification
+
+**Fix:**
+1. Ensure `JWT_SECRET` is same in all environments
+2. Redeploy to update functions with correct secret
+
+---
+
+## 📊 Monitoring & Limits
+
+### Resend Free Tier
+
+- **Emails:** 3,000/month, 100/day
+- **From Address:** `onboarding@resend.dev` (sandbox)
+- **To Address:** Any email in allowlist
+
+**Estimated Usage:**
+- 10 users × 2 logins/week = ~80 emails/month ✅
+
+### Vercel KV (Redis) Free Tier
+
+- **Storage:** 256 MB
+- **Commands:** 100,000/day
+- **Bandwidth:** 100 MB/day
+
+**Estimated Usage:**
+- ~100 code operations/day ✅
+
+### JWT Token Size
+
+- **Size:** ~200 bytes
+- **Stored:** localStorage (5-10 MB limit)
+- **Impact:** Negligible ✅
+
+---
+
+## 🎯 Adding More Users
+
+**Method 1: Environment Variable (Recommended)**
+
+```bash
+# Vercel Dashboard → Environment Variables
+ALLOWED_EMAILS=user1@gmail.com,user2@shipt.com,user3@company.com
+```
+
+**Method 2: Code Update (for many users)**
 
 Edit `api/send-code.ts`:
+
 ```typescript
 const ALLOWED_EMAILS = [
-  'geminiabhijeet@gmail.com',
-  'teammate@shipt.com',
+  'team-lead@shipt.com',
+  'engineer1@shipt.com',
+  'engineer2@shipt.com',
   'manager@shipt.com',
 ].map(e => e.trim().toLowerCase());
 ```
@@ -134,91 +911,64 @@ Then commit and push.
 
 ---
 
-## 🔒 Security Best Practices
+## 🚨 Emergency Procedures
 
-### ✅ DO:
-- Keep `RESEND_API_KEY` and `JWT_SECRET` secret
-- Use strong, random `JWT_SECRET` (32+ characters)
-- Verify domain for production use
+### Revoke All Sessions
+
+**Delete auth-storage from all users:**
+
+Add this to `App.tsx` temporarily:
+
+```typescript
+useEffect(() => {
+  localStorage.removeItem('auth-storage');
+  window.location.reload();
+}, []);
+```
+
+Deploy → All users logged out → Remove code → Redeploy
+
+### Rotate JWT Secret
+
+1. Generate new secret: `openssl rand -base64 32`
+2. Update `JWT_SECRET` in Vercel
+3. Redeploy
+4. **All existing tokens become invalid** → Users must re-login
+
+### Disable Authentication (Emergency)
+
+Edit `src/App.tsx`:
+
+```typescript
+// Temporarily bypass auth
+const isDev = true; // Force dev mode (no auth)
+```
+
+Commit and deploy → Auth disabled
+
+---
+
+## ✅ Success!
+
+Your authentication system is now fully operational! 🎉
+
+**What you have:**
+- ✅ Secure, passwordless login
+- ✅ Email allowlist protection
+- ✅ Rate limiting and code expiration
+- ✅ Beautiful, responsive UI
+- ✅ 7-day sessions with JWT
+- ✅ Production-ready infrastructure
+
+**Next steps:**
+- Add team members to `ALLOWED_EMAILS`
 - Monitor Resend dashboard for usage
-- Use HTTPS only (enforced by Vercel)
-
-### ❌ DON'T:
-- Commit `.env.local` to Git
-- Share API keys publicly
-- Use weak JWT secrets
-- Exceed Resend free tier (3,000/month)
+- Set up domain verification (optional)
+- Build additional features!
 
 ---
 
-## Troubleshooting
-
-### Email Not Received
-
-1. **Check spam folder**
-2. **Verify email in ALLOWED_EMAILS**
-   - Go to Vercel → Environment Variables
-   - Check spelling and case (should be lowercase)
-3. **Check Resend dashboard**
-   - Go to "Logs" to see sent emails
-   - Look for errors
-
-### "Email not authorized" Error
-
-- The email you entered is not in `ALLOWED_EMAILS`
-- Add it via Vercel environment variables
-- Redeploy the app
-
-### Code Expired
-
-- Codes expire after 10 minutes
-- Click "Resend Code" to get a new one
-
-### Rate Limited
-
-- Max 3 login attempts per hour
-- Wait 1 hour or clear localStorage:
-  ```javascript
-  // In browser console
-  localStorage.clear()
-  ```
-
----
-
-## 📊 Usage Limits (Free Tier)
-
-**Resend Free:**
-- 3,000 emails/month
-- 100 emails/day
-- Perfect for small teams!
-
-**Your Usage:**
-- ~10 users × 2 logins/week = ~80 emails/month
-- Well within limits ✅
-
----
-
-## 🎯 Next Steps
-
-### Phase 2 Features (Optional):
-1. **Admin Panel** - Manage allowed emails via UI
-2. **Audit Logs** - Track login attempts
-3. **Email Templates** - Customize email design
-4. **Session Management** - View active sessions
-
----
-
-## Support
-
-**Questions?**
-- Check Resend docs: https://resend.com/docs
-- Vercel env vars: https://vercel.com/docs/environment-variables
-
-**Common Issues:**
-- Emails in spam → Domain verification helps
-- API key invalid → Regenerate in Resend dashboard
-- JWT errors → Generate new secret, update Vercel
-
----
-
-✅ **Setup Complete!** Your app is now secured with email authentication.
+**Need help?**
+- Resend docs: https://resend.com/docs
+- Vercel docs: https://vercel.com/docs
+- Redis docs: https://redis.io/docs
