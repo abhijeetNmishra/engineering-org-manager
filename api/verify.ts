@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
+
+// Initialize Redis client
+const redis = new Redis(process.env.REDIS_URL || '');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -25,9 +28,9 @@ export default async function handler(
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedCode = code.replace(/\s/g, ''); // Remove spaces
 
-    // Get stored code from Vercel KV
+    // Get stored code from Redis
     const codeKey = `passcode:${normalizedEmail}`;
-    const storedCode = await kv.get<string>(codeKey);
+    const storedCode = await redis.get(codeKey);
 
     if (!storedCode) {
       return res.status(400).json({ 
@@ -43,7 +46,7 @@ export default async function handler(
     }
 
     // Code is valid - delete it so it can't be reused
-    await kv.del(codeKey);
+    await redis.del(codeKey);
 
     // Generate JWT token
     const expiresAt = Date.now() + SESSION_DURATION_MS;

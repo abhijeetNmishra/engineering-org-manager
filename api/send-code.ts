@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Resend } from 'resend';
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
+
+// Initialize Redis client
+const redis = new Redis(process.env.REDIS_URL || '');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
@@ -16,20 +19,21 @@ function generateCode(): string {
 // Check rate limiting
 async function checkRateLimit(email: string): Promise<boolean> {
   const key = `rate_limit:${email}`;
-  const stored = await kv.get<{ attempts: number; lastAttempt: number }>(key);
+  const stored = await redis.get(key);
   
   if (!stored) return true;
 
+  const data = JSON.parse(stored);
   const now = Date.now();
-  const timeSinceLastAttempt = now - stored.lastAttempt;
+  const timeSinceLastAttempt = now - data.lastAttempt;
   
   // Reset attempts if it's been more than an hour
   if (timeSinceLastAttempt > RATE_LIMIT_WINDOW_MS) {
-    await kv.del(key);
+    await redis.del(key);
     return true;
   }
 
-  return stored.attempts < MAX_ATTEMPTS;
+  return data.attempts < MAX_ATTEMPTS;
 }
 
 export default async function handler(
@@ -68,17 +72,23 @@ export default async function handler(
     // Generate passcode
     const code = generateCode();
 
-    // Store passcode in Vercel KV (Redis) with expiration
+    // Store passcode in Redis with expiration
     const codeKey = `passcode:${normalizedEmail}`;
-    await kv.set(codeKey, code, { ex: CODE_EXPIRY_SECONDS });
+    await redis.setex(codeKey, CODE_EXPIRY_SECONDS, code);
 
     // Update rate limiting
     const rateLimitKey = `rate_limit:${normalizedEmail}`;
-    const existing = await kv.get<{ attempts: number }>(rateLimitKey);
-    await kv.set(rateLimitKey, {
-      attempts: existing ? existing.attempts + 1 : 1,
-      lastAttempt: Date.now(),
-    }, { ex: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) });
+    const existing = await redis.get(rateLimitKey);
+    const existingData = existing ? JSON.parse(existing) : null;
+    
+    await redis.setex(
+      rateLimitKey,
+      Math.ceil(RATE_LIMIT_WINDOW_MS / 1000),
+      JSON.stringify({
+        attempts: existingData ? existingData.attempts + 1 : 1,
+        lastAttempt: Date.now(),
+      })
+    );
 
     // Send email via Resend
     await resend.emails.send({
