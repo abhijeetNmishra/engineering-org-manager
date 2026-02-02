@@ -98,16 +98,17 @@ export function PasscodeInput({
                     onPaste={handlePaste}
                     maxLength={1}
                     disabled={loading}
+                    variant="outlined"
                     style={{
                         width: '48px',
                         height: '58px',
                         fontSize: '28px',
                         fontWeight: '700',
-                        textAlign: 'center',
+                        textAlign: 'center' as const,
                         fontFamily: 'SF Mono, Monaco, Courier New, monospace',
                         borderRadius: '8px',
-                        border: digit ? '2px solid var(--auth-primary, #6B21EF)' : '1px solid var(--border-glass)',
-                        background: 'var(--bg-tertiary)',
+                        border: digit ? '2px solid #6B21EF !important' : '1px solid rgba(255, 255, 255, 0.2) !important',
+                        background: 'rgba(255, 255, 255, 0.05) !important',
                         color: 'var(--text-primary)',
                         transition: 'all 0.2s ease',
                     }}
