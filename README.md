@@ -78,24 +78,18 @@ Data management interface:
 
 **Frontend Framework:**
 - **React 19.2** with TypeScript
-- **Vite** for lightning-fast dev server and HMR
+- **Vite** for fast development
+
+**Backend & Persistence:**
+- **Vercel Postgres** - Main database for employees, modules, and ownership
+- **Vercel KV (Redis)** - Authentication codes and rate limiting
+- **Serverless Functions** - API routes (`/api/*`)
 
 **UI Components:**
-- **Ant Design 6.2** - Comprehensive component library
-- **Ant Design Icons** - Icon system
-- **React Flow 11.11** - Org chart visualization engine
-- **@AntV/G6 5.0** - Graph visualization for module dependencies
-- **ELK.js** - Automatic graph layout algorithm
+- **Ant Design 6.2** - Component library
+- **React Flow 11.11** - Org chart visualization
+- **@AntV/G6 5.0** - Graph visualization
 
-**Data Handling:**
-- **Zustand** (state management via custom store)
-- **PapaParse** - CSV parsing and export
-- **Day.js** - Date utilities
-
-**Build Tools:**
-- **TypeScript 5.9** - Type safety
-- **ESLint** - Code quality
-- **Vite 7.2** - Build tooling
 
 ### Project Structure
 
@@ -165,9 +159,18 @@ cd shipt-org-manager
 # Install dependencies
 npm install
 
-# Start development server
-npm run dev
+# Start local development server (IMPORTANT: Use vercel dev)
+# This handles both frontend AND backend API + Database connection
+vercel dev
 ```
+
+The app will be available at `http://localhost:3000`
+
+> **Note:** Do not use `npm run dev`. It does not support the serverless API routes needed for the database.
+
+### Documentation
+- 💾 **[Data Persistence Setup](DATA_PERSISTENCE.md)** - Database schema and local DB setup
+- 🔐 **[Authentication Setup](AUTHENTICATION_SETUP.md)** - Email auth and security details
 
 The app will be available at `http://localhost:5173`
 

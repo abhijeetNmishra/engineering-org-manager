@@ -1,0 +1,430 @@
+/* Manage Org Styles - FIT TO SCREEN (FULL WIDTH) */
+
+/* CRITICAL: Override parent glass padding for full width */
+.glass:has(.manage-org) {
+    padding: 8px !important;
+}
+
+.manage-org {
+    height: 100%;
+    width: 100%;
+    max-height: calc(100vh - 110px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    padding: 0;
+}
+
+/* Header - compact */
+.manage-org-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.page-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.page-title .anticon {
+    color: #6B21EF;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 12px;
+}
+
+/* 3-Panel Layout - STRETCH TO FILL WIDTH */
+.manage-org-layout {
+    display: grid;
+    grid-template-columns: 200px 320px 1fr;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+    width: 100%;
+}
+
+/* Roster-specific: let Leaders panel expand */
+.roster-panel {
+    max-width: 320px;
+}
+
+.leaders-panel {
+    min-width: 280px;
+}
+
+.panel {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 100% !important;
+    height: 100% !important;
+}
+
+.panel .ant-card-head {
+    background: rgba(107, 33, 239, 0.05);
+    border-bottom: 1px solid var(--border-glass);
+    padding: 8px 12px;
+    min-height: auto;
+    flex-shrink: 0;
+}
+
+.panel .ant-card-head-title {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.panel .ant-card-body {
+    padding: 8px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    max-height: 100%;
+}
+
+/* Workstreams Panel */
+.workstreams-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.droppable-workstream {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-glass);
+    border-left-width: 4px;
+    border-radius: 8px;
+    cursor: default;
+    transition: all 0.2s ease;
+}
+
+.droppable-workstream.over {
+    background: rgba(107, 33, 239, 0.1);
+    border-color: #6B21EF;
+    transform: scale(1.02);
+}
+
+.workstream-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.workstream-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.workstream-count {
+    flex-shrink: 0;
+}
+
+.workstream-count .ant-badge-count {
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font-size: 11px;
+    box-shadow: none;
+}
+
+/* Roster Panel */
+.roster-count {
+    margin-left: 8px;
+}
+
+.roster-count .ant-badge-count {
+    background: #6B21EF;
+    font-size: 11px;
+}
+
+.roster-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Draggable Person - Compact for narrow roster */
+.draggable-person {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    cursor: grab;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.draggable-person:hover {
+    border-color: #6B21EF;
+    box-shadow: 0 4px 12px rgba(107, 33, 239, 0.15);
+    transform: translateY(-2px);
+}
+
+.draggable-person.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.draggable-person:active {
+    cursor: grabbing;
+}
+
+.person-avatar {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #FF9B26 0%, #FF6D5A 100%);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.status-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+}
+
+.person-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.person-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.person-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.leader-badge {
+    font-size: 10px;
+    padding: 0 6px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* Leaders Panel - Grid layout for wider panel */
+.leaders-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.droppable-leader {
+    background: var(--bg-primary);
+    border: 2px dashed var(--border-glass);
+    border-radius: 12px;
+    padding: 14px;
+    transition: all 0.2s ease;
+    min-height: 100px;
+}
+
+.droppable-leader.over {
+    border-color: #6B21EF;
+    border-style: solid;
+    background: rgba(107, 33, 239, 0.08);
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(107, 33, 239, 0.2);
+}
+
+.droppable-leader.active {
+    border-color: rgba(107, 33, 239, 0.4);
+    animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+
+    0%,
+    100% {
+        border-color: rgba(107, 33, 239, 0.3);
+    }
+
+    50% {
+        border-color: rgba(107, 33, 239, 0.6);
+    }
+}
+
+.leader-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.leader-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #6B21EF 0%, #3B82F6 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.leader-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.leader-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.leader-title {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.leader-stats {
+    flex-shrink: 0;
+}
+
+.report-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.leader-drop-zone {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: rgba(107, 33, 239, 0.03);
+    border: 1px dashed var(--border-glass);
+}
+
+.drop-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Drag Overlay */
+.drag-overlay {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+    border: 2px solid #6B21EF;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(107, 33, 239, 0.3);
+    cursor: grabbing;
+}
+
+.drag-overlay .person-avatar {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #6B21EF 0%, #FF6D5A 100%);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .droppable-workstream {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .draggable-person {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .droppable-leader {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .leader-drop-zone {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .drag-overlay {
+    background: rgba(20, 20, 30, 0.98);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .manage-org-layout {
+        grid-template-columns: 180px 280px 1fr;
+    }
+
+    .roster-panel {
+        max-width: 280px;
+    }
+
+    .leaders-list {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 1024px) {
+    .manage-org-layout {
+        grid-template-columns: 180px 1fr;
+    }
+
+    .leaders-panel {
+        display: none;
+    }
+
+    .roster-panel {
+        max-width: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .manage-org-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .workstreams-panel {
+        display: none;
+    }
+}

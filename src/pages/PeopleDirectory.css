@@ -1,0 +1,357 @@
+/* People Directory Styles */
+
+.people-directory {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+}
+
+/* Header */
+.directory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.header-content {
+    flex: 1;
+}
+
+.page-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-primary);
+}
+
+.page-title .anticon {
+    color: #6B21EF;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    margin: 4px 0 0;
+    font-size: 14px;
+}
+
+/* Quick Stats Bar */
+.quick-stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-item .anticon {
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border-glass);
+    margin: 0 8px;
+}
+
+.status-active .stat-value {
+    color: #10B981;
+}
+
+.status-leave .stat-value {
+    color: #F59E0B;
+}
+
+.status-open .stat-value {
+    color: #64748B;
+}
+
+/* Filter Bar */
+.filter-bar {
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+}
+
+.filter-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.search-input {
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.search-input .ant-input-affix-wrapper {
+    background: var(--bg-primary);
+    border-color: var(--border-glass);
+    border-radius: 8px;
+}
+
+.filter-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+/* Filter Chip */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--card-bg);
+}
+
+.filter-chip:hover {
+    border-color: #6B21EF;
+}
+
+.filter-chip.active {
+    background: #6B21EF;
+    border-color: #6B21EF;
+    color: white;
+}
+
+.chip-count {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.filter-chip:not(.active) .chip-count {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.clear-filters-btn {
+    color: var(--text-muted);
+}
+
+.clear-filters-btn:hover {
+    color: #EF4444;
+}
+
+/* Table Card */
+.table-card {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-card .ant-card-body {
+    padding: 0;
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* People Table */
+.people-table .ant-table {
+    background: transparent;
+}
+
+.people-table .ant-table-thead>tr>th {
+    background: rgba(107, 33, 239, 0.05);
+    border-bottom: 1px solid var(--border-glass);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+
+.people-table .ant-table-tbody>tr>td {
+    border-bottom: 1px solid var(--border-glass);
+    padding: 12px 16px;
+}
+
+.people-table .ant-table-tbody>tr:hover>td {
+    background: rgba(107, 33, 239, 0.03);
+}
+
+.people-table .ant-table-tbody>tr.open-role-row>td {
+    background: rgba(100, 116, 139, 0.05);
+}
+
+.people-table .ant-table-tbody>tr.on-leave-row>td {
+    background: rgba(245, 158, 11, 0.05);
+}
+
+/* Name Cell */
+.name-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.employee-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.title-row {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.leader-tag {
+    font-size: 10px;
+    padding: 0 6px;
+    height: 18px;
+    line-height: 18px;
+    border-radius: 4px;
+}
+
+.skill-level-tag {
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+/* Manager Name */
+.manager-name {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* Skills Cell */
+.skills-cell {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.skill-tag {
+    font-size: 11px;
+    padding: 0 6px;
+    height: 20px;
+    line-height: 20px;
+}
+
+.skill-tag.more {
+    background: var(--bg-primary);
+    color: var(--text-muted);
+}
+
+/* Workstreams Cell */
+.workstreams-cell {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.workstreams-cell .more {
+    background: var(--bg-primary);
+    color: var(--text-muted);
+}
+
+/* Pagination */
+.people-table .ant-pagination {
+    padding: 16px;
+    margin: 0;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .quick-stats-bar {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .filter-bar {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .table-card {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+[data-theme="dark"] .filter-chip {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .people-table .ant-table-thead>tr>th {
+    background: rgba(107, 33, 239, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .directory-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .page-title {
+        font-size: 22px;
+    }
+
+    .quick-stats-bar {
+        gap: 12px;
+    }
+
+    .stat-divider {
+        display: none;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    .filter-chips {
+        width: 100%;
+    }
+}

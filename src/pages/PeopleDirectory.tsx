@@ -1,30 +1,48 @@
 import { useMemo, useState } from "react";
-import { Card, Col, Input, Row, Select, Table, Tag, Tree, Drawer, Form, Button, Space, Popconfirm, Divider } from "antd";
-import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import {
+    Card,
+    Col,
+    Input,
+    Row,
+    Select,
+    Table,
+    Tag,
+    Drawer,
+    Form,
+    Button,
+    Space,
+    Popconfirm,
+    Divider,
+    Badge,
+    Statistic,
+    Segmented,
+} from "antd";
+import {
+    PlusOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    SearchOutlined,
+    FilterOutlined,
+    TeamOutlined,
+    UserOutlined,
+    CloseCircleOutlined,
+} from "@ant-design/icons";
+import { motion, AnimatePresence } from "framer-motion";
 import type { ColumnsType } from "antd/es/table";
-import type { Employee, WorkstreamKey, TechnicalSkill, SkillLevel, LocationTag, RoleLevel } from "../domain/types";
+import type {
+    Employee,
+    WorkstreamKey,
+    TechnicalSkill,
+    SkillLevel,
+    LocationTag,
+    RoleLevel,
+    EmployeeStatus,
+} from "../domain/types";
 import { useOrgStore } from "../state/orgStore";
+import { computeLeaderMetrics, getLeaders } from "../domain/orgMetrics";
+import "./PeopleDirectory.css";
 
-function buildReportingTree(employees: Employee[]) {
-    const children = new Map<string, Employee[]>();
-    employees.forEach((e) => {
-        if (!e.managerId) return;
-        const arr = children.get(e.managerId) ?? [];
-        arr.push(e);
-        children.set(e.managerId, arr);
-    });
-
-    const roots = employees.filter((e) => !e.managerId);
-
-    const toNode = (e: Employee): any => ({
-        key: e.id,
-        title: `${e.name} • ${e.title}`,
-        children: (children.get(e.id) ?? []).map(toNode),
-    });
-
-    return roots.map(toNode);
-}
-
+// Constants
 const AllSkills: TechnicalSkill[] = [
     "Frontend - Web",
     "Frontend - App",
@@ -56,98 +74,285 @@ const AllTitles: RoleLevel[] = [
 
 const AllSkillLevels: SkillLevel[] = ["Junior", "Mid", "Senior", "Staff", "Principal"];
 
+const AllStatuses: EmployeeStatus[] = ["active", "on_leave", "open"];
+
+// Filter chip component
+function FilterChip({
+    label,
+    active,
+    count,
+    onClick,
+    color,
+}: {
+    label: string;
+    active: boolean;
+    count?: number;
+    onClick: () => void;
+    color?: string;
+}) {
+    return (
+        <motion.button
+            className={`filter-chip ${active ? "active" : ""}`}
+            onClick={onClick}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            style={{
+                background: active ? (color || "#6B21EF") : "var(--card-bg)",
+                borderColor: active ? (color || "#6B21EF") : "var(--border-glass)",
+                color: active ? "#FFFFFF" : "var(--text-secondary)",
+            }}
+        >
+            {label}
+            {count !== undefined && <span className="chip-count">{count}</span>}
+        </motion.button>
+    );
+}
+
+// Quick Stats Row
+function QuickStats({
+    total,
+    leaders,
+    ics,
+    active,
+    onLeave,
+    open,
+}: {
+    total: number;
+    leaders: number;
+    ics: number;
+    active: number;
+    onLeave: number;
+    open: number;
+}) {
+    return (
+        <div className="quick-stats-bar">
+            <div className="stat-item">
+                <TeamOutlined />
+                <span className="stat-value">{total}</span>
+                <span className="stat-label">Total</span>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+                <UserOutlined />
+                <span className="stat-value">{leaders}</span>
+                <span className="stat-label">Leaders</span>
+            </div>
+            <div className="stat-item">
+                <UserOutlined />
+                <span className="stat-value">{ics}</span>
+                <span className="stat-label">ICs</span>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item status-active">
+                <Badge status="success" />
+                <span className="stat-value">{active}</span>
+                <span className="stat-label">Active</span>
+            </div>
+            <div className="stat-item status-leave">
+                <Badge status="warning" />
+                <span className="stat-value">{onLeave}</span>
+                <span className="stat-label">On Leave</span>
+            </div>
+            <div className="stat-item status-open">
+                <Badge status="default" />
+                <span className="stat-value">{open}</span>
+                <span className="stat-label">Open</span>
+            </div>
+        </div>
+    );
+}
+
 export default function PeopleDirectory() {
     const { state, dispatch } = useOrgStore();
 
+    // Search and filter state
     const [query, setQuery] = useState("");
-    const [workstream, setWorkstream] = useState<WorkstreamKey | "All">("All");
+    const [showLeadersOnly, setShowLeadersOnly] = useState(false);
+    const [selectedSkills, setSelectedSkills] = useState<TechnicalSkill[]>([]);
+    const [selectedWorkstream, setSelectedWorkstream] = useState<WorkstreamKey | null>(null);
+    const [selectedStatus, setSelectedStatus] = useState<EmployeeStatus | null>(null);
+    const [selectedLocation, setSelectedLocation] = useState<LocationTag | null>(null);
+
+    // Drawer state
     const [selected, setSelected] = useState<Employee | null>(null);
     const [open, setOpen] = useState(false);
     const [isNew, setIsNew] = useState(false);
 
+    // View mode
+    const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+
+    // Get leaders list
+    const leaders = useMemo(() => getLeaders(state), [state]);
+    const leaderIds = useMemo(() => new Set(leaders.map((l) => l.id)), [leaders]);
+
+    // Workstreams list
     const workstreams = useMemo(() => {
         const ws = Array.from(new Set(state.employees.flatMap((e) => e.workstreams)));
         return ws.sort() as WorkstreamKey[];
     }, [state.employees]);
 
+    // Compute stats
+    const stats = useMemo(() => {
+        const activeCount = state.employees.filter((e) => (e.status || "active") === "active").length;
+        const onLeaveCount = state.employees.filter((e) => e.status === "on_leave").length;
+        const openCount = state.employees.filter((e) => e.status === "open").length;
+        return {
+            total: state.employees.length,
+            leaders: leaders.length,
+            ics: state.employees.length - leaders.length,
+            active: activeCount,
+            onLeave: onLeaveCount,
+            open: openCount,
+        };
+    }, [state.employees, leaders]);
+
+    // Filtered employees
     const filtered = useMemo(() => {
         return state.employees.filter((e) => {
+            // Text search
             const matchesQuery =
+                !query ||
                 e.name.toLowerCase().includes(query.toLowerCase()) ||
                 e.title.toLowerCase().includes(query.toLowerCase());
-            const matchesWorkstream = workstream === "All" ? true : e.workstreams.includes(workstream);
-            return matchesQuery && matchesWorkstream;
-        });
-    }, [state.employees, query, workstream]);
 
+            // Leaders only filter
+            const matchesLeader = !showLeadersOnly || leaderIds.has(e.id);
+
+            // Skills filter (OR within skills)
+            const matchesSkills =
+                selectedSkills.length === 0 ||
+                selectedSkills.some(
+                    (skill) => e.primarySkills?.includes(skill) || e.secondarySkills?.includes(skill)
+                );
+
+            // Workstream filter
+            const matchesWorkstream = !selectedWorkstream || e.workstreams.includes(selectedWorkstream);
+
+            // Status filter
+            const matchesStatus = !selectedStatus || (e.status || "active") === selectedStatus;
+
+            // Location filter
+            const matchesLocation = !selectedLocation || e.location === selectedLocation;
+
+            return matchesQuery && matchesLeader && matchesSkills && matchesWorkstream && matchesStatus && matchesLocation;
+        });
+    }, [state.employees, query, showLeadersOnly, selectedSkills, selectedWorkstream, selectedStatus, selectedLocation, leaderIds]);
+
+    // Manager name helper
     const managerName = (managerId?: string) => {
         if (!managerId) return "—";
         const m = state.employees.find((x) => x.id === managerId);
         return m ? m.name : "Unknown";
     };
 
+    // Clear all filters
+    const clearFilters = () => {
+        setQuery("");
+        setShowLeadersOnly(false);
+        setSelectedSkills([]);
+        setSelectedWorkstream(null);
+        setSelectedStatus(null);
+        setSelectedLocation(null);
+    };
+
+    const hasActiveFilters =
+        query || showLeadersOnly || selectedSkills.length > 0 || selectedWorkstream || selectedStatus || selectedLocation;
+
+    // Table columns
     const columns: ColumnsType<Employee> = [
         {
             title: "Name",
             dataIndex: "name",
-            width: 200,
-            render: (v: string, r) => (
-                <div>
-                    <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.title}</div>
-                    {r.skillLevel && (
-                        <Tag color="blue" style={{ fontSize: 10, marginTop: 4 }}>
-                            {r.skillLevel}
-                        </Tag>
-                    )}
-                </div>
-            ),
+            width: 240,
+            sorter: (a, b) => a.name.localeCompare(b.name),
+            render: (v: string, r) => {
+                const isLeader = leaderIds.has(r.id);
+                const leaderMetrics = isLeader ? computeLeaderMetrics(state, r.id) : null;
+                return (
+                    <div className="name-cell">
+                        <div className="name-row">
+                            <span className="employee-name">{v}</span>
+                            {isLeader && (
+                                <Tag color="purple" className="leader-tag">
+                                    <TeamOutlined /> {leaderMetrics?.directReports}
+                                </Tag>
+                            )}
+                        </div>
+                        <div className="title-row">{r.title}</div>
+                        {r.skillLevel && (
+                            <Tag color="blue" className="skill-level-tag">
+                                {r.skillLevel}
+                            </Tag>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             title: "Manager",
             dataIndex: "managerId",
             width: 140,
-            render: (v) => <span style={{ color: "var(--text-secondary)" }}>{managerName(v)}</span>
+            render: (v) => <span className="manager-name">{managerName(v)}</span>,
         },
         {
-            title: "Primary Skills",
+            title: "Skills",
             dataIndex: "primarySkills",
-            width: 220,
+            width: 200,
             render: (arr?: TechnicalSkill[]) => (
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <div className="skills-cell">
                     {(arr ?? []).slice(0, 2).map((x) => (
-                        <Tag key={x} color="cyan">{x}</Tag>
+                        <Tag key={x} color="cyan" className="skill-tag">
+                            {x.replace("Frontend - ", "FE ").replace("Backend", "BE")}
+                        </Tag>
                     ))}
-                    {(arr ?? []).length > 2 ? <Tag>+{(arr ?? []).length - 2}</Tag> : null}
+                    {(arr ?? []).length > 2 && <Tag className="skill-tag more">+{(arr ?? []).length - 2}</Tag>}
                 </div>
             ),
         },
         {
             title: "Workstreams",
             dataIndex: "workstreams",
-            width: 180,
+            width: 160,
             render: (arr: WorkstreamKey[]) => (
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {arr.slice(0, 2).map((x) => (
+                <div className="workstreams-cell">
+                    {arr.slice(0, 1).map((x) => (
                         <Tag key={x}>{x}</Tag>
                     ))}
-                    {arr.length > 2 ? <Tag>+{arr.length - 2}</Tag> : null}
+                    {arr.length > 1 && <Tag className="more">+{arr.length - 1}</Tag>}
                 </div>
             ),
         },
         {
             title: "Location",
             dataIndex: "location",
+            width: 90,
+            filters: AllLocations.map((l) => ({ text: l, value: l })),
+            onFilter: (value, record) => record.location === value,
+            render: (v) => <Tag>{v}</Tag>,
+        },
+        {
+            title: "Status",
+            dataIndex: "status",
             width: 100,
-            render: (v) => <Tag>{v}</Tag>
+            render: (v?: EmployeeStatus) => {
+                const status = v || "active";
+                const config = {
+                    active: { color: "success" as const, label: "Active" },
+                    on_leave: { color: "warning" as const, label: "On Leave" },
+                    open: { color: "default" as const, label: "Open" },
+                };
+                return <Badge status={config[status].color} text={config[status].label} />;
+            },
         },
         {
             title: "",
             key: "actions",
-            width: 120,
+            width: 100,
+            fixed: "right",
             render: (_, r) => (
                 <Space size="small">
                     <Button
+                        type="text"
                         size="small"
                         icon={<EditOutlined />}
                         onClick={() => {
@@ -155,30 +360,28 @@ export default function PeopleDirectory() {
                             setIsNew(false);
                             setOpen(true);
                         }}
-                    >
-                        Edit
-                    </Button>
+                    />
                     <Popconfirm
                         title="Delete this person?"
                         description="Their direct reports will be reassigned to their manager."
                         onConfirm={() => dispatch({ type: "DELETE_EMPLOYEE", employeeId: r.id })}
                     >
-                        <Button size="small" danger icon={<DeleteOutlined />} />
+                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </Space>
             ),
         },
     ];
 
-    const reportingTree = useMemo(() => buildReportingTree(state.employees), [state.employees]);
-
+    // Manager options for form
     const managerOptions = useMemo(() => {
-        if (!selected) return [];
+        if (!selected) return state.employees.map((e) => ({ value: e.id, label: `${e.name} • ${e.title}` }));
         return state.employees
             .filter((e) => e.id !== selected.id)
             .map((e) => ({ value: e.id, label: `${e.name} • ${e.title}` }));
     }, [state.employees, selected]);
 
+    // Form submit handler
     const handleSubmit = (values: any) => {
         if (isNew) {
             const newId = `e-${Date.now()}`;
@@ -198,6 +401,7 @@ export default function PeopleDirectory() {
                     skillLevel: values.skillLevel || undefined,
                     tenure: values.tenure || undefined,
                     email: values.email || undefined,
+                    status: values.status || "active",
                 },
             });
         } else if (selected) {
@@ -210,148 +414,180 @@ export default function PeopleDirectory() {
                     location: values.location,
                     managerId: values.managerId || undefined,
                     workstreams: values.workstreams || [],
-                    notes: values.notes || "",
                     primarySkills: values.primarySkills || [],
                     secondarySkills: values.secondarySkills || [],
                     skillLevel: values.skillLevel || undefined,
                     tenure: values.tenure || undefined,
                     email: values.email || undefined,
+                    status: values.status || "active",
                 },
             });
         }
         setOpen(false);
+        setSelected(null);
     };
 
     return (
-        <Row gutter={[16, 16]}>
-            <Col xs={24}>
-                <Card
-                    className="glass"
-                    title={<span className="brand">People Directory</span>}
-                    extra={
-                        <Space>
-                            <Input
-                                placeholder="Search name or title…"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                style={{ width: 220 }}
-                                allowClear
-                            />
-                            <Select
-                                value={workstream}
-                                style={{ width: 220 }}
-                                onChange={(v) => setWorkstream(v)}
-                                options={[{ value: "All", label: "All workstreams" }].concat(
-                                    workstreams.map((w) => ({ value: w, label: w }))
-                                )}
-                            />
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => {
-                                    setSelected(null);
-                                    setIsNew(true);
-                                    setOpen(true);
-                                }}
-                            >
-                                Add Person
-                            </Button>
-                        </Space>
-                    }
+        <div className="people-directory">
+            {/* Header */}
+            <motion.div
+                className="directory-header"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <div className="header-content">
+                    <h1 className="page-title">
+                        <TeamOutlined /> People Directory
+                    </h1>
+                    <p className="page-subtitle">{filtered.length} of {state.employees.length} people</p>
+                </div>
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                        setSelected(null);
+                        setIsNew(true);
+                        setOpen(true);
+                    }}
                 >
-                    <Table
-                        rowKey="id"
-                        columns={columns}
-                        dataSource={filtered}
-                        pagination={{ pageSize: 10 }}
-                        size="small"
+                    Add Person
+                </Button>
+            </motion.div>
+
+            {/* Quick Stats */}
+            <QuickStats {...stats} />
+
+            {/* Filter Bar */}
+            <div className="filter-bar">
+                <div className="filter-row">
+                    <Input
+                        placeholder="Search by name or title..."
+                        prefix={<SearchOutlined />}
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        className="search-input"
+                        allowClear
                     />
-                </Card>
-            </Col>
 
-            <Col xs={24} md={12}>
-                <Card className="glass" title={<span className="brand">Reporting Tree</span>}>
-                    <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                        VP → Directors/SEMs → EMs → ICs
+                    {/* Filter Chips */}
+                    <div className="filter-chips">
+                        <FilterChip
+                            label="Leaders"
+                            active={showLeadersOnly}
+                            count={stats.leaders}
+                            onClick={() => setShowLeadersOnly(!showLeadersOnly)}
+                            color="#8B5CF6"
+                        />
+
+                        <Select
+                            placeholder="Workstream"
+                            allowClear
+                            style={{ width: 140 }}
+                            value={selectedWorkstream}
+                            onChange={setSelectedWorkstream}
+                            options={workstreams.map((w) => ({ value: w, label: w }))}
+                        />
+
+                        <Select
+                            placeholder="Status"
+                            allowClear
+                            style={{ width: 120 }}
+                            value={selectedStatus}
+                            onChange={setSelectedStatus}
+                            options={[
+                                { value: "active", label: "Active" },
+                                { value: "on_leave", label: "On Leave" },
+                                { value: "open", label: "Open Role" },
+                            ]}
+                        />
+
+                        <Select
+                            placeholder="Skills"
+                            mode="multiple"
+                            allowClear
+                            style={{ minWidth: 160, maxWidth: 300 }}
+                            value={selectedSkills}
+                            onChange={setSelectedSkills}
+                            options={AllSkills.map((s) => ({ value: s, label: s }))}
+                            maxTagCount={1}
+                        />
+
+                        <Select
+                            placeholder="Location"
+                            allowClear
+                            style={{ width: 110 }}
+                            value={selectedLocation}
+                            onChange={setSelectedLocation}
+                            options={AllLocations.map((l) => ({ value: l, label: l }))}
+                        />
                     </div>
-                    <Tree treeData={reportingTree} defaultExpandAll />
-                </Card>
-            </Col>
 
-            <Col xs={24} md={12}>
-                <Card className="glass" title={<span className="brand">Skill Overview</span>}>
-                    <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-                        Top skills in the organization
-                    </div>
-                    {(() => {
-                        const skillCount = new Map<string, number>();
-                        state.employees.forEach((e) => {
-                            (e.primarySkills ?? []).forEach((s) => {
-                                skillCount.set(s, (skillCount.get(s) ?? 0) + 1);
-                            });
-                        });
-                        const sorted = Array.from(skillCount.entries())
-                            .sort((a, b) => b[1] - a[1])
-                            .slice(0, 8);
+                    {hasActiveFilters && (
+                        <Button
+                            type="text"
+                            icon={<CloseCircleOutlined />}
+                            onClick={clearFilters}
+                            className="clear-filters-btn"
+                        >
+                            Clear
+                        </Button>
+                    )}
+                </div>
+            </div>
 
-                        return (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {sorted.map(([skill, count]) => (
-                                    <div key={skill} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                        <div style={{ fontWeight: 600, minWidth: 180, color: "var(--text-primary)" }}>
-                                            {skill}
-                                        </div>
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: 24,
-                                                background: "var(--gradient-product)",
-                                                borderRadius: 4,
-                                                width: `${(count / state.employees.length) * 100}%`,
-                                            }}
-                                        />
-                                        <div style={{ fontWeight: 700, minWidth: 30, color: "var(--text-accent)" }}>
-                                            {count}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    })()}
-                </Card>
-            </Col>
+            {/* Table */}
+            <Card className="table-card">
+                <Table
+                    dataSource={filtered}
+                    columns={columns}
+                    rowKey="id"
+                    pagination={{
+                        pageSize: 15,
+                        showSizeChanger: true,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                    }}
+                    scroll={{ x: 1100 }}
+                    size="middle"
+                    className="people-table"
+                    rowClassName={(record) =>
+                        (record.status === "open" ? "open-role-row" : "") +
+                        (record.status === "on_leave" ? " on-leave-row" : "")
+                    }
+                />
+            </Card>
 
+            {/* Edit/Add Drawer */}
             <Drawer
-                title={isNew ? "Add New Person" : "Edit Person"}
+                title={isNew ? "Add New Person" : `Edit ${selected?.name}`}
                 open={open}
-                width={560}
-                onClose={() => setOpen(false)}
-                destroyOnClose
+                onClose={() => {
+                    setOpen(false);
+                    setSelected(null);
+                }}
+                width={480}
+                footer={
+                    <Space>
+                        <Button onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button type="primary" form="employee-form" htmlType="submit">
+                            {isNew ? "Add Person" : "Save Changes"}
+                        </Button>
+                    </Space>
+                }
             >
                 <Form
+                    id="employee-form"
                     layout="vertical"
                     initialValues={
-                        isNew
-                            ? {
-                                location: "US",
-                                title: "Engineer",
-                                skillLevel: "Mid",
-                            }
-                            : {
-                                name: selected?.name,
-                                title: selected?.title,
-                                location: selected?.location,
-                                managerId: selected?.managerId ?? "",
-                                workstreams: selected?.workstreams ?? [],
-                                primarySkills: selected?.primarySkills ?? [],
-                                secondarySkills: selected?.secondarySkills ?? [],
-                                skillLevel: selected?.skillLevel,
-                                tenure: selected?.tenure,
-                                email: selected?.email,
-                                notes: selected?.notes,
-                            }
+                        selected || {
+                            workstreams: [],
+                            primarySkills: [],
+                            secondarySkills: [],
+                            status: "active",
+                        }
                     }
                     onFinish={handleSubmit}
+                    key={selected?.id || "new"}
                 >
                     <Form.Item label="Name" name="name" rules={[{ required: true }]}>
                         <Input placeholder="Full name" />
@@ -370,19 +606,38 @@ export default function PeopleDirectory() {
                         </Col>
                     </Row>
 
-                    <Form.Item label="Manager" name="managerId">
-                        <Select allowClear placeholder="Select manager (or leave empty for root)" options={managerOptions} />
-                    </Form.Item>
+                    <Row gutter={12}>
+                        <Col span={12}>
+                            <Form.Item label="Manager" name="managerId">
+                                <Select
+                                    allowClear
+                                    placeholder="Select manager"
+                                    options={managerOptions}
+                                    showSearch
+                                    filterOption={(input, option) =>
+                                        (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                                    }
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="Status" name="status">
+                                <Select
+                                    options={AllStatuses.map((s) => ({
+                                        value: s,
+                                        label: s === "active" ? "Active" : s === "on_leave" ? "On Leave" : "Open Role",
+                                    }))}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
                     <Divider />
 
                     <Row gutter={12}>
                         <Col span={12}>
                             <Form.Item label="Skill Level" name="skillLevel">
-                                <Select
-                                    allowClear
-                                    options={AllSkillLevels.map((s) => ({ value: s, label: s }))}
-                                />
+                                <Select allowClear options={AllSkillLevels.map((s) => ({ value: s, label: s }))} />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
@@ -395,7 +650,7 @@ export default function PeopleDirectory() {
                     <Form.Item label="Primary Skills" name="primarySkills">
                         <Select
                             mode="multiple"
-                            placeholder="Select 2-3 primary skills"
+                            placeholder="Select primary skills"
                             options={AllSkills.map((s) => ({ value: s, label: s }))}
                         />
                     </Form.Item>
@@ -403,10 +658,12 @@ export default function PeopleDirectory() {
                     <Form.Item label="Secondary Skills" name="secondarySkills">
                         <Select
                             mode="multiple"
-                            placeholder="Adjacent competencies"
+                            placeholder="Select secondary skills"
                             options={AllSkills.map((s) => ({ value: s, label: s }))}
                         />
                     </Form.Item>
+
+                    <Divider />
 
                     <Form.Item label="Workstreams" name="workstreams">
                         <Select
@@ -417,21 +674,10 @@ export default function PeopleDirectory() {
                     </Form.Item>
 
                     <Form.Item label="Email" name="email">
-                        <Input type="email" placeholder="email@shipt.com" />
+                        <Input type="email" placeholder="email@example.com" />
                     </Form.Item>
-
-                    <Form.Item label="Notes" name="notes">
-                        <Input.TextArea rows={3} placeholder="Additional notes..." />
-                    </Form.Item>
-
-                    <Space>
-                        <Button type="primary" htmlType="submit">
-                            {isNew ? "Add Person" : "Save Changes"}
-                        </Button>
-                        <Button onClick={() => setOpen(false)}>Cancel</Button>
-                    </Space>
                 </Form>
             </Drawer>
-        </Row>
+        </div>
     );
 }

@@ -14,11 +14,12 @@ import {
 import type { MenuProps } from "antd";
 import {
   Home,
-  Dashboard,
   PeopleDirectory,
-  ModuleOwnership,
   OrgChart,
   ImportExport,
+  OrgOverview,
+  Intelligence,
+  ManageOrg,
 } from "./pages";
 import { Login } from "./pages/Login";
 import { OrgStoreProvider } from "./state/orgStore";
@@ -28,10 +29,10 @@ import { ThemeToggle } from "./components/ThemeToggle";
 
 const { Header, Sider, Content } = Layout;
 
-type RouteKey = "home" | "dashboard" | "people" | "modules" | "orgchart" | "data";
+type RouteKey = "overview" | "home" | "dashboard" | "people" | "modules" | "orgchart" | "data";
 
 function AppShell() {
-  const [route, setRoute] = useState<RouteKey>("home");
+  const [route, setRoute] = useState<RouteKey>("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -59,11 +60,11 @@ function AppShell() {
 
   const menuItems: MenuProps["items"] = useMemo(
     () => [
-      { key: "home", icon: <HomeOutlined />, label: "Home" },
-      { key: "dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-      { key: "people", icon: <TeamOutlined />, label: "People & Reporting" },
-      { key: "modules", icon: <ApartmentOutlined />, label: "Modules & Ownership" },
+      { key: "overview", icon: <HomeOutlined />, label: "Org Overview" },
+      { key: "dashboard", icon: <DashboardOutlined />, label: "Intelligence" },
+      { key: "people", icon: <TeamOutlined />, label: "People Directory" },
       { key: "orgchart", icon: <NodeIndexOutlined />, label: "Org Chart" },
+      { key: "modules", icon: <ApartmentOutlined />, label: "Manage Org" },
       { key: "data", icon: <ImportOutlined />, label: "Import / Export" },
     ],
     []
@@ -151,28 +152,24 @@ function AppShell() {
           </div>
 
           {!isMobile && (
-            <>
-              <div className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>
-                Vertical + Horizontal accountability • Modules • Ownership • Spans
-              </div>
-              <Button
-                type="text"
-                icon={<LogoutOutlined />}
-                onClick={logout}
-                style={{ color: 'var(--text-primary)', marginLeft: '12px' }}
-              >
-                {user?.email || "Logout"}
-              </Button>
-            </>
+            <Button
+              type="text"
+              icon={<LogoutOutlined />}
+              onClick={logout}
+              style={{ color: 'var(--text-primary)', marginLeft: 'auto' }}
+            >
+              {user?.email || "Logout"}
+            </Button>
           )}
         </Header>
 
         <Content className="content">
           <div className="glass" style={{ padding: 14 }}>
+            {route === "overview" && <OrgOverview />}
             {route === "home" && <Home onNavigate={(r) => setRoute(r as RouteKey)} />}
-            {route === "dashboard" && <Dashboard />}
+            {route === "dashboard" && <Intelligence />}
             {route === "people" && <PeopleDirectory />}
-            {route === "modules" && <ModuleOwnership />}
+            {route === "modules" && <ManageOrg />}
             {route === "orgchart" && <OrgChart />}
             {route === "data" && <ImportExport />}
           </div>

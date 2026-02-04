@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import { orgApi } from "../utils/orgApi";
 import type { Employee, ModuleNode, Ownership, ShiptOrgState } from "../domain/types";
 import { mockOrgState } from "../domain/mockData";
 
@@ -140,16 +141,122 @@ type Store = {
 const OrgStoreContext = createContext<Store | null>(null);
 
 export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
-    const [state, dispatch] = useReducer(reducer, loadState());
+    const [state, dispatchLocal] = useReducer(reducer, mockOrgState); // Start with mock/empty, load later
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    // Initial load from Server -> LocalStorage -> Mock
+    useEffect(() => {
+        async function hydrate() {
+            try {
+                // Try fetching from server first
+                const serverState = await orgApi.loadState();
+                dispatchLocal({ type: "IMPORT_STATE", payload: serverState });
+            } catch (error) {
+                console.warn("Backend unavailable, falling back to localStorage", error);
+                // Fallback to localStorage
+                const localState = loadState();
+                if (localState) {
+                    dispatchLocal({ type: "IMPORT_STATE", payload: localState });
+                }
+            } finally {
+                setIsLoaded(true);
+            }
+        }
+        hydrate();
+    }, []);
+
+    // Sync actions to backend
+    const dispatch = async (action: Action) => {
+        // 1. Optimistic update
+        dispatchLocal(action);
+
+        // 2. Sync to API (fire and forget for MVP)
+        try {
+            switch (action.type) {
+                case "ADD_EMPLOYEE":
+                    await orgApi.createEmployee(action.employee);
+                    break;
+                case "UPDATE_EMPLOYEE":
+                case "UPDATE_MANAGER": // Both map to updateEmployee
+                    // For UPDATE_MANAGER, we need the full updated employee object from state? 
+                    // Actually, the reducer runs first, so 'state' here is STALE (closure).
+                    // We need the *new* state. 
+                    // For MVP simplicity: Just use the payload if possible, or refetch?
+                    // Better: The API expects the full object.
+                    // For UPDATE_EMPLOYEE, we can merge updates? No, API takes full object.
+                    // We should pass the updated object.
+                    // Let's rely on the reducer to have updated it? No, we don't have access to next state here easily.
+
+                    // Workaround for MVP:
+                    // Just save the whole state for complex ops, or construct the object.
+                    // Let's implement granular sync where easy.
+                    if (action.type === "UPDATE_EMPLOYEE") {
+                        // We don't have the full new object easily without querying state.
+                        // But we can construct it if we had the old one.
+                        // Let's punt on perfect optimistic sync for complex updates and just saveState() periodically?
+                        // "The system must support ... Update employee"
+
+                        // Let's try to do it right.
+                        // Only specific safe actions:
+                        const emp = state.employees.find(e => e.id === action.employeeId);
+                        if (emp) {
+                            await orgApi.updateEmployee({ ...emp, ...action.updates });
+                        }
+                    } else if (action.type === "UPDATE_MANAGER") {
+                        const emp = state.employees.find(e => e.id === action.employeeId);
+                        if (emp) {
+                            await orgApi.updateEmployee({ ...emp, managerId: action.managerId });
+                        }
+                    }
+                    break;
+
+                case "DELETE_EMPLOYEE":
+                    await orgApi.deleteEmployee(action.employeeId);
+                    break;
+
+                case "ADD_MODULE":
+                    await orgApi.createModule(action.module);
+                    break;
+
+                case "UPDATE_MODULE":
+                    // Similar issue, need full object.
+                    const mod = state.modules.find(m => m.id === action.moduleId);
+                    if (mod) {
+                        await orgApi.updateModule({ ...mod, ...action.updates });
+                    }
+                    break;
+
+                case "DELETE_MODULE":
+                    await orgApi.deleteModule(action.moduleId);
+                    break;
+
+                case "IMPORT_STATE":
+                    // Full state sync
+                    await orgApi.saveState(action.payload);
+                    break;
+                case "RESET_DEMO":
+                    // Reset to mock state
+                    await orgApi.saveState(mockOrgState);
+                    break;
+            }
+        } catch (error) {
+            console.error("Failed to sync action to backend:", action.type, error);
+            // In a real app, show a toast or undo
+        }
+    };
 
     const employeesById = useMemo(() => new Map(state.employees.map((e) => [e.id, e])), [state.employees]);
 
-    // Auto-save to localStorage whenever state changes
+    // Keep localStorage backup as well
     useEffect(() => {
-        saveState(state);
-    }, [state]);
+        if (isLoaded) { // Only save after initial load
+            saveState(state);
+        }
+    }, [state, isLoaded]);
 
-    const value = useMemo(() => ({ state, dispatch, employeesById }), [state, dispatch, employeesById]);
+    const value = useMemo(() => ({ state, dispatch, employeesById }), [state, employeesById]);
+
+    if (!isLoaded) return null; // Or a spinner
 
     return <OrgStoreContext.Provider value={value}>{children}</OrgStoreContext.Provider>;
 }
