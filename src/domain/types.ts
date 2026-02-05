@@ -1,46 +1,18 @@
-export type RoleLevel =
-  | "VP"
-  | "Director"
-  | "Senior Principal Engineer"
-  | "Principal Engineer"
-  | "Senior Engineering Manager"
-  | "Engineering Manager"
-  | "Staff Engineer"
-  | "Senior Engineer"
-  | "Engineer"
-  | "Associate Engineer";
+// Changed from union to string to allow dynamic roles
+export type RoleLevel = string;
 
 export type WorkstreamType = "Vertical" | "Horizontal";
 
-export type WorkstreamKey =
-  | "Search"
-  | "Browse"
-  | "SEO"
-  | "Pricing"
-  | "Promo"
-  | "Checkout"
-  | "Fulfillment"
-  | "Personalization"
-  | "Platform"
-  | "Observability";
+// Changed from union to string to allow dynamic creation
+export type WorkstreamKey = string;
 
 export type LocationTag = "US" | "Nearshore" | "Offshore";
 
 // NEW: Skill types
 export type SkillLevel = "Junior" | "Mid" | "Senior" | "Staff" | "Principal";
 
-export type TechnicalSkill =
-  | "Frontend - Web"
-  | "Frontend - App"
-  | "Frontend - All"
-  | "Fullstack"
-  | "Backend"
-  | "AI/ML"
-  | "Backend - Search"
-  | "DevOps/SRE"
-  | "Architecture"
-  | "GraphQL"
-  | "API Design";
+// Changed from union to string to allow dynamic creation
+export type TechnicalSkill = string;
 
 // NEW: Module health types
 export type ModuleHealth = "Healthy" | "At Risk" | "Critical";

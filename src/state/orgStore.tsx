@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer, useSt
 import { orgApi } from "../utils/orgApi";
 import type { Employee, ModuleNode, Ownership, ShiptOrgState } from "../domain/types";
 import { mockOrgState } from "../domain/mockData";
+import { AppLoader } from "../components/AppLoader";
 
 const STORAGE_KEY = "shipt-org-manager-state";
 
@@ -256,7 +257,7 @@ export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
 
     const value = useMemo(() => ({ state, dispatch, employeesById }), [state, employeesById]);
 
-    if (!isLoaded) return null; // Or a spinner
+    if (!isLoaded) return <AppLoader />;
 
     return <OrgStoreContext.Provider value={value}>{children}</OrgStoreContext.Provider>;
 }

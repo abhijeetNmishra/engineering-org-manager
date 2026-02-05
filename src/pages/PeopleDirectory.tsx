@@ -1,45 +1,37 @@
 import { useMemo, useState } from "react";
 import {
     Card,
-    Col,
     Input,
-    Row,
     Select,
     Table,
     Tag,
     Drawer,
-    Form,
     Button,
     Space,
     Popconfirm,
-    Divider,
     Badge,
-    Statistic,
-    Segmented,
 } from "antd";
 import {
     PlusOutlined,
     DeleteOutlined,
     EditOutlined,
     SearchOutlined,
-    FilterOutlined,
     TeamOutlined,
     UserOutlined,
     CloseCircleOutlined,
 } from "@ant-design/icons";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import type { ColumnsType } from "antd/es/table";
 import type {
     Employee,
     WorkstreamKey,
     TechnicalSkill,
-    SkillLevel,
     LocationTag,
-    RoleLevel,
     EmployeeStatus,
 } from "../domain/types";
 import { useOrgStore } from "../state/orgStore";
 import { computeLeaderMetrics, getLeaders } from "../domain/orgMetrics";
+import { EmployeeForm } from "../components/forms/EmployeeForm";
 import "./PeopleDirectory.css";
 
 // Constants
@@ -59,22 +51,7 @@ const AllSkills: TechnicalSkill[] = [
 
 const AllLocations: LocationTag[] = ["US", "Nearshore", "Offshore"];
 
-const AllTitles: RoleLevel[] = [
-    "VP",
-    "Director",
-    "Senior Principal Engineer",
-    "Principal Engineer",
-    "Senior Engineering Manager",
-    "Engineering Manager",
-    "Staff Engineer",
-    "Senior Engineer",
-    "Engineer",
-    "Associate Engineer",
-];
 
-const AllSkillLevels: SkillLevel[] = ["Junior", "Mid", "Senior", "Staff", "Principal"];
-
-const AllStatuses: EmployeeStatus[] = ["active", "on_leave", "open"];
 
 // Filter chip component
 function FilterChip({
@@ -177,9 +154,6 @@ export default function PeopleDirectory() {
     const [selected, setSelected] = useState<Employee | null>(null);
     const [open, setOpen] = useState(false);
     const [isNew, setIsNew] = useState(false);
-
-    // View mode
-    const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
     // Get leaders list
     const leaders = useMemo(() => getLeaders(state), [state]);
@@ -373,54 +347,20 @@ export default function PeopleDirectory() {
         },
     ];
 
-    // Manager options for form
-    const managerOptions = useMemo(() => {
-        if (!selected) return state.employees.map((e) => ({ value: e.id, label: `${e.name} • ${e.title}` }));
-        return state.employees
-            .filter((e) => e.id !== selected.id)
-            .map((e) => ({ value: e.id, label: `${e.name} • ${e.title}` }));
-    }, [state.employees, selected]);
+
 
     // Form submit handler
-    const handleSubmit = (values: any) => {
+    const handleSubmit = (employee: Employee) => {
         if (isNew) {
-            const newId = `e-${Date.now()}`;
             dispatch({
                 type: "ADD_EMPLOYEE",
-                employee: {
-                    id: newId,
-                    name: values.name,
-                    title: values.title,
-                    location: values.location,
-                    managerId: values.managerId || undefined,
-                    workstreams: values.workstreams || [],
-                    moduleOwnershipIds: [],
-                    notes: values.notes || "",
-                    primarySkills: values.primarySkills || [],
-                    secondarySkills: values.secondarySkills || [],
-                    skillLevel: values.skillLevel || undefined,
-                    tenure: values.tenure || undefined,
-                    email: values.email || undefined,
-                    status: values.status || "active",
-                },
+                employee: employee,
             });
-        } else if (selected) {
+        } else {
             dispatch({
                 type: "UPDATE_EMPLOYEE",
-                employeeId: selected.id,
-                updates: {
-                    name: values.name,
-                    title: values.title,
-                    location: values.location,
-                    managerId: values.managerId || undefined,
-                    workstreams: values.workstreams || [],
-                    primarySkills: values.primarySkills || [],
-                    secondarySkills: values.secondarySkills || [],
-                    skillLevel: values.skillLevel || undefined,
-                    tenure: values.tenure || undefined,
-                    email: values.email || undefined,
-                    status: values.status || "active",
-                },
+                employeeId: employee.id,
+                updates: employee,
             });
         }
         setOpen(false);
@@ -565,118 +505,17 @@ export default function PeopleDirectory() {
                     setOpen(false);
                     setSelected(null);
                 }}
-                width={480}
-                footer={
-                    <Space>
-                        <Button onClick={() => setOpen(false)}>Cancel</Button>
-                        <Button type="primary" form="employee-form" htmlType="submit">
-                            {isNew ? "Add Person" : "Save Changes"}
-                        </Button>
-                    </Space>
-                }
+                width={520}
+                footer={null} // Footer is handled by EmployeeForm
             >
-                <Form
-                    id="employee-form"
-                    layout="vertical"
-                    initialValues={
-                        selected || {
-                            workstreams: [],
-                            primarySkills: [],
-                            secondarySkills: [],
-                            status: "active",
-                        }
-                    }
-                    onFinish={handleSubmit}
-                    key={selected?.id || "new"}
-                >
-                    <Form.Item label="Name" name="name" rules={[{ required: true }]}>
-                        <Input placeholder="Full name" />
-                    </Form.Item>
-
-                    <Row gutter={12}>
-                        <Col span={12}>
-                            <Form.Item label="Title" name="title" rules={[{ required: true }]}>
-                                <Select options={AllTitles.map((t) => ({ value: t, label: t }))} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item label="Location" name="location" rules={[{ required: true }]}>
-                                <Select options={AllLocations.map((l) => ({ value: l, label: l }))} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    <Row gutter={12}>
-                        <Col span={12}>
-                            <Form.Item label="Manager" name="managerId">
-                                <Select
-                                    allowClear
-                                    placeholder="Select manager"
-                                    options={managerOptions}
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-                                    }
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item label="Status" name="status">
-                                <Select
-                                    options={AllStatuses.map((s) => ({
-                                        value: s,
-                                        label: s === "active" ? "Active" : s === "on_leave" ? "On Leave" : "Open Role",
-                                    }))}
-                                />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    <Divider />
-
-                    <Row gutter={12}>
-                        <Col span={12}>
-                            <Form.Item label="Skill Level" name="skillLevel">
-                                <Select allowClear options={AllSkillLevels.map((s) => ({ value: s, label: s }))} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item label="Tenure (months)" name="tenure">
-                                <Input type="number" placeholder="e.g., 24" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    <Form.Item label="Primary Skills" name="primarySkills">
-                        <Select
-                            mode="multiple"
-                            placeholder="Select primary skills"
-                            options={AllSkills.map((s) => ({ value: s, label: s }))}
-                        />
-                    </Form.Item>
-
-                    <Form.Item label="Secondary Skills" name="secondarySkills">
-                        <Select
-                            mode="multiple"
-                            placeholder="Select secondary skills"
-                            options={AllSkills.map((s) => ({ value: s, label: s }))}
-                        />
-                    </Form.Item>
-
-                    <Divider />
-
-                    <Form.Item label="Workstreams" name="workstreams">
-                        <Select
-                            mode="multiple"
-                            placeholder="Select workstreams"
-                            options={workstreams.map((w) => ({ value: w, label: w }))}
-                        />
-                    </Form.Item>
-
-                    <Form.Item label="Email" name="email">
-                        <Input type="email" placeholder="email@example.com" />
-                    </Form.Item>
-                </Form>
+                <EmployeeForm
+                    initialValues={selected || undefined}
+                    onCancel={() => {
+                        setOpen(false);
+                        setSelected(null);
+                    }}
+                    onSubmit={handleSubmit}
+                />
             </Drawer>
         </div>
     );

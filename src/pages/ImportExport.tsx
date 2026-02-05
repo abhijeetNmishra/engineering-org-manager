@@ -1,9 +1,18 @@
 import { useMemo, useState } from "react";
-import { Card, Upload, Button, Space, message, Divider, Typography, Table, Tag } from "antd";
+import { Card, Upload, Button, Space, message, Divider, Typography, Table, Tag, Tabs } from "antd";
 import type { UploadProps } from "antd";
+import {
+    CloudUploadOutlined,
+    AppstoreOutlined,
+    PartitionOutlined,
+    FileTextOutlined,
+    SafetyCertificateOutlined
+} from "@ant-design/icons";
 import Papa from "papaparse";
 import { useOrgStore } from "../state/orgStore";
 import type { ShiptOrgState } from "../domain/types";
+import { ModuleManager } from "../components/ModuleManager";
+import { OwnershipMatrix } from "../components/OwnershipMatrix";
 
 const { Title, Paragraph } = Typography;
 
@@ -109,7 +118,7 @@ export default function ImportExport() {
             } catch (e: any) {
                 message.error(e?.message || "Import failed");
             }
-            return false; // prevent actual upload
+            return false;
         },
     });
 
@@ -150,66 +159,101 @@ export default function ImportExport() {
         message.success("Downloaded CSVs");
     };
 
+    // Tab Items
+    const items = [
+        {
+            key: '1',
+            label: <span><AppstoreOutlined /> Module Manager</span>,
+            children: (
+                <div>
+                    <Paragraph className="muted">
+                        Visual editor for the organization's technical components. Add, rename, or restructure modules.
+                    </Paragraph>
+                    <ModuleManager />
+                </div>
+            )
+        },
+        {
+            key: '2',
+            label: <span><CloudUploadOutlined /> Bulk Data Tools</span>,
+            children: (
+                <Card className="glass">
+                    <Paragraph className="muted">
+                        Upload CSVs from your org spreadsheet (local-only). Export a JSON snapshot + CSVs anytime.
+                    </Paragraph>
+
+                    <Space wrap>
+                        <Upload {...uploadProps(importEmployees)}>
+                            <Button icon={<FileTextOutlined />}>Import employees.csv</Button>
+                        </Upload>
+                        <Upload {...uploadProps(importModules)}>
+                            <Button icon={<PartitionOutlined />}>Import modules.csv</Button>
+                        </Upload>
+                        <Upload {...uploadProps(importOwnership)}>
+                            <Button icon={<AppstoreOutlined />}>Import ownership.csv</Button>
+                        </Upload>
+                    </Space>
+
+                    <Divider type="vertical" style={{ height: 28 }} />
+
+                    <Space wrap>
+                        <Button type="primary" onClick={exportSnapshot}>
+                            Download snapshot (JSON)
+                        </Button>
+                        <Button onClick={exportCsv}>Download CSVs</Button>
+                        <Button danger onClick={() => dispatch({ type: "RESET_DEMO" })}>
+                            Reset demo data
+                        </Button>
+                    </Space>
+
+                    <Divider />
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+                        {schemaHelp.map((s) => (
+                            <Tag key={s.file}>
+                                <b>{s.file}</b>: {s.columns}
+                            </Tag>
+                        ))}
+                    </div>
+
+                    <div className="muted" style={{ marginBottom: 10 }}>
+                        Preview (first 10 rows of last import)
+                    </div>
+                    <Table
+                        size="small"
+                        rowKey={(_, i) => String(i)}
+                        dataSource={preview}
+                        columns={(preview[0] ? Object.keys(preview[0]) : ["—"]).map((k) => ({
+                            title: k,
+                            dataIndex: k,
+                        }))}
+                        pagination={false}
+                        scroll={{ x: true }}
+                    />
+                </Card>
+            )
+        },
+        {
+            key: '3',
+            label: <span><SafetyCertificateOutlined /> Ownership Matrix</span>,
+            children: (
+                <div>
+                    <Paragraph className="muted">
+                        Assign module owners and define primary/secondary responsibilities. Ensure every critical component has an owner.
+                    </Paragraph>
+                    <OwnershipMatrix />
+                </div>
+            )
+        }
+    ];
+
     return (
         <div>
-            <Title level={4} style={{ margin: 0, color: "rgba(255,255,255,0.92)" }}>
-                Import / Export
+            <Title level={4} style={{ margin: "0 0 16px 0", color: "rgba(255,255,255,0.92)" }}>
+                Data Management
             </Title>
-            <Paragraph className="muted" style={{ marginTop: 6 }}>
-                Upload CSVs from your org spreadsheet (local-only). Export a JSON snapshot + CSVs anytime.
-            </Paragraph>
 
-            <Card className="glass">
-                <Space wrap>
-                    <Upload {...uploadProps(importEmployees)}>
-                        <Button>Import employees.csv</Button>
-                    </Upload>
-                    <Upload {...uploadProps(importModules)}>
-                        <Button>Import modules.csv</Button>
-                    </Upload>
-                    <Upload {...uploadProps(importOwnership)}>
-                        <Button>Import ownership.csv</Button>
-                    </Upload>
-
-                    <Divider type="vertical" style={{ height: 28, borderColor: "rgba(255,255,255,0.18)" }} />
-
-                    <Button type="primary" onClick={exportSnapshot}>
-                        Download snapshot (JSON)
-                    </Button>
-                    <Button onClick={exportCsv}>Download CSVs</Button>
-
-                    <Button danger onClick={() => dispatch({ type: "RESET_DEMO" })}>
-                        Reset demo data
-                    </Button>
-                </Space>
-
-                <Divider style={{ borderColor: "rgba(255,255,255,0.14)" }} />
-
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    {schemaHelp.map((s) => (
-                        <Tag key={s.file}>
-                            <b>{s.file}</b>: {s.columns}
-                        </Tag>
-                    ))}
-                </div>
-
-                <Divider style={{ borderColor: "rgba(255,255,255,0.14)" }} />
-
-                <div className="muted" style={{ marginBottom: 10 }}>
-                    Preview (first 10 rows of last import)
-                </div>
-                <Table
-                    size="small"
-                    rowKey={(_, i) => String(i)}
-                    dataSource={preview}
-                    columns={(preview[0] ? Object.keys(preview[0]) : ["—"]).map((k) => ({
-                        title: k,
-                        dataIndex: k,
-                    }))}
-                    pagination={false}
-                    scroll={{ x: true }}
-                />
-            </Card>
+            <Tabs defaultActiveKey="1" items={items} />
         </div>
     );
 }
