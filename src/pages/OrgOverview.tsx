@@ -62,9 +62,14 @@ function ModuleCard({
             variants={cardVariants}
             onClick={onClick}
             style={{
-                borderLeft: `4px solid ${moduleColor}`,
+                // @ts-ignore
+                "--module-color": moduleColor,
+                // @ts-ignore
+                "--module-color-bg": `${moduleColor}0D`, // ~5% opacity
+                // @ts-ignore
+                "--module-color-shadow": `${moduleColor}66`, // ~40% opacity
                 cursor: onClick ? 'pointer' : 'default',
-            }}
+            } as React.CSSProperties}
         >
             {/* Module color indicator */}
             <div

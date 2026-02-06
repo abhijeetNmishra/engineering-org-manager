@@ -164,7 +164,7 @@ function AppShell() {
         </Header>
 
         <Content className="content">
-          <div className="glass" style={{ padding: 14 }}>
+          <div className={`glass ${["modules", "orgchart"].includes(route) ? 'fixed-height' : ''}`} style={{ padding: 14 }}>
             {route === "overview" && <OrgOverview />}
             {route === "home" && <Home onNavigate={(r) => setRoute(r as RouteKey)} />}
             {route === "dashboard" && <Intelligence />}

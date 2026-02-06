@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...e,
           workstreams: e.workstreams || [],
           moduleOwnershipIds: e.module_ids || [],
-          primarySkills: e.primary_skills || [],
+          primarySkill: (e.primary_skills && e.primary_skills.length > 0) ? e.primary_skills[0] : null,
           secondarySkills: e.secondary_skills || [],
           // Ensure correct camelCase mapping from DB snake_case if needed
           managerId: e.manager_id,
@@ -33,7 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           parentId: m.parent_id,
           directorId: m.director_id,
           tags: m.tags || [],
-          dependencies: m.dependencies || []
+          dependencies: m.dependencies || [],
+          icon: m.icon
         })) as any,
         ownership: ownership.rows.map(o => ({
           moduleId: o.module_id,
@@ -60,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           VALUES (
             ${emp.id}, ${emp.name}, ${emp.title}, ${emp.location}, ${emp.managerId || null},
             ${JSON.stringify(emp.workstreams)}, ${JSON.stringify(emp.moduleOwnershipIds)},
-            ${JSON.stringify(emp.primarySkills || [])}, ${JSON.stringify(emp.secondarySkills || [])},
+            ${JSON.stringify(emp.primarySkill ? [emp.primarySkill] : [])}, ${JSON.stringify(emp.secondarySkills || [])},
             ${emp.skillLevel || null}, ${emp.tenure || null}, ${emp.email || null},
             ${emp.status || 'active'}, ${emp.notes || null}
           )
@@ -70,13 +71,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 3. Insert Modules
       for (const mod of state.modules) {
         await sql`
-          INSERT INTO modules (id, name, workstream, type, parent_id, director_id, tags, health, priority, effort, dependencies, description)
+          INSERT INTO modules (id, name, workstream, type, parent_id, director_id, tags, health, priority, effort, dependencies, description, icon)
           VALUES (
             ${mod.id}, ${mod.name}, ${mod.workstream}, ${mod.type},
             ${mod.parentId || null}, ${mod.directorId || null},
             ${JSON.stringify(mod.tags || [])}, ${mod.health || null},
             ${mod.priority || null}, ${mod.effort || null},
-            ${JSON.stringify(mod.dependencies || [])}, ${mod.description || null}
+            ${JSON.stringify(mod.dependencies || [])}, ${mod.description || null},
+            ${mod.icon || null}
           )
         `;
       }

@@ -40,6 +40,9 @@
     --sider-text-muted: #D4CFDF;
     --sider-hover: rgba(255, 255, 255, 0.08);
 
+    /* Card Backgrounds */
+    --card-bg: rgba(26, 20, 37, 0.7);
+
     /* Background Gradient Opacity */
     --gradient-opacity: 0.08;
 }
@@ -79,6 +82,9 @@
     --sider-text: #FFFFFF;
     --sider-text-muted: #D4CFDF;
     --sider-hover: rgba(255, 255, 255, 0.1);
+
+    /* Card Backgrounds - Semi-transparent for Glass Effect */
+    --card-bg: rgba(255, 255, 255, 0.65);
 
     /* Background Gradient Opacity */
     --gradient-opacity: 0.02;
@@ -146,7 +152,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
     height: calc(100vh - 64px);
     width: 100%;
 }
@@ -156,21 +162,31 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-    height: 100%;
+    min-height: 100%;
+    overflow: visible;
+    height: auto;
     width: 100%;
 }
 
-/* Page containers fill ALL available space */
+/* For specific app-like pages (Org Chart, Module Manager) that need fixed viewport */
+.content>.glass.fixed-height {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Page containers default behavior: natural height */
 .content>.glass>div {
     flex: 1;
     display: flex;
     flex-direction: column;
+    width: 100%;
+}
+
+/* When in fixed-app mode, force children to fill space and handle own scroll */
+.content>.glass.fixed-height>div {
     min-height: 0;
     overflow: hidden;
     height: 100%;
-    width: 100%;
 }
 
 /* Sider styling */

@@ -122,7 +122,8 @@ export const ModuleManager: React.FC = () => {
                 type: type || "Vertical",
                 parentId: parentForNew || undefined,
                 tags: [],
-                description: values.description
+                description: values.description,
+                icon: values.icon
             };
             dispatch({ type: "ADD_MODULE", module: newModule });
 
@@ -133,24 +134,34 @@ export const ModuleManager: React.FC = () => {
         setIsModalOpen(false);
     };
 
-    // ... titleRender code ... (unchanged)
     const titleRender = (nodeData: any) => {
         const m = nodeData.data as ModuleNode;
-        // Simplified: Don't show workstream tag if it matches name (Root)
-        // Show type tag only on Root
         const isRoot = !m.parentId;
+
+        // Icon Logic: Custom -> Folder(Root) -> File(Sub)
+        const IconDisplay = () => {
+            if (m.icon) return <span style={{ marginRight: 8, fontSize: 16 }}>{m.icon}</span>;
+            return isRoot ? <FolderOutlined style={{ marginRight: 8 }} /> : <FileOutlined style={{ marginRight: 8 }} />;
+        };
 
         return (
             <div
                 className="tree-node-content"
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    width: '100%',
+                    paddingRight: 8 // Padding for actions
+                }}
                 onClick={() => setSelectedKey(m.id)}
             >
-                <Space>
-                    <span style={{ fontWeight: 500 }}>{m.name}</span>
-                    {isRoot && m.type === "Horizontal" && <Tag color="orange">Horizontal</Tag>}
-                    {isRoot && m.type === "Vertical" && <Tag color="blue">Vertical</Tag>}
-                </Space>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <IconDisplay />
+                    <span style={{ fontWeight: 500, marginRight: 8 }}>{m.name}</span>
+                    {isRoot && m.type === "Horizontal" && <Tag color="orange" style={{ margin: 0 }}>Horizontal</Tag>}
+                    {isRoot && m.type === "Vertical" && <Tag color="blue" style={{ margin: 0 }}>Vertical</Tag>}
+                </div>
 
                 <Space className="node-actions" onClick={e => e.stopPropagation()}>
                     <Tooltip title="Add Submodule">
@@ -215,12 +226,14 @@ export const ModuleManager: React.FC = () => {
                 ) : (
                     <Tree
                         treeData={treeData}
-                        showIcon
+                        showIcon={false} // We handle icons in titleRender
                         blockNode
                         titleRender={titleRender as any}
                         expandedKeys={expandedKeys}
                         onExpand={setExpandedKeys}
                         selectedKeys={selectedKey ? [selectedKey] : []}
+                        showLine={{ showLeafIcon: false }} // Clean alignment guide
+                        motion={undefined} // Default Ant movement is usually fine, 'undefined' uses default
                     />
                 )}
             </Card>
@@ -244,9 +257,14 @@ export const ModuleManager: React.FC = () => {
                         </Form.Item>
                     )}
 
-                    <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-                        <Input placeholder={parentForNew ? "e.g. Shopping Cart" : "e.g. Checkout"} />
-                    </Form.Item>
+                    <div style={{ display: 'flex', gap: 16 }}>
+                        <Form.Item name="icon" label="Icon" style={{ width: 80 }}>
+                            <Input placeholder="🚀" style={{ textAlign: 'center' }} maxLength={2} />
+                        </Form.Item>
+                        <Form.Item name="name" label="Name" rules={[{ required: true }]} style={{ flex: 1 }}>
+                            <Input placeholder={parentForNew ? "e.g. Shopping Cart" : "e.g. Checkout"} />
+                        </Form.Item>
+                    </div>
 
                     {/* Only show Type for Root modules */}
                     {!parentForNew && (

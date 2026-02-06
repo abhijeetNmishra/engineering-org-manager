@@ -190,7 +190,17 @@ import type {
 } from "./types";
 
 // Color palette for modules (used in charts and badges)
+// Color palette for modules (used in charts and badges)
 export const MODULE_COLORS: Record<string, string> = {
+  // Core Workstreams
+  "Traffic, Discovery & Growth": "#FF9B26", // Orange
+  "Consideration": "#8B5CF6",              // Purple
+  "Purchase & Post Purchase": "#10B981",   // Green
+  "MP Engineering": "#3B82F6",             // Blue
+  "Agentic Experience": "#EC4899",         // Pink
+  "Foundation": "#6366F1",                 // Indigo
+  
+  // Legacy / Other
   "Search": "#6B21EF",
   "Browse": "#3B82F6",
   "SEO": "#10B981",
@@ -285,10 +295,8 @@ export function computeLeaderMetrics(
   // Compute skill mix from direct reports
   const skillMix: Record<string, number> = {};
   directReports.forEach(e => {
-    if (e.primarySkills) {
-      e.primarySkills.forEach(skill => {
-        skillMix[skill] = (skillMix[skill] || 0) + 1;
-      });
+    if (e.primarySkill) {
+      skillMix[e.primarySkill] = (skillMix[e.primarySkill] || 0) + 1;
     }
   });
   
@@ -333,10 +341,8 @@ export function computeModuleSummaries(state: ShiptOrgState): ModuleSummary[] {
     // Skill distribution
     const skillDistribution: Record<string, number> = {};
     moduleEmployees.forEach(e => {
-      if (e.primarySkills) {
-        e.primarySkills.forEach(skill => {
-          skillDistribution[skill] = (skillDistribution[skill] || 0) + 1;
-        });
+      if (e.primarySkill) {
+        skillDistribution[e.primarySkill] = (skillDistribution[e.primarySkill] || 0) + 1;
       }
     });
     
@@ -401,10 +407,8 @@ export function computeSkillDistribution(state: ShiptOrgState): DistributionItem
   const skillCounts: Record<string, number> = {};
   
   state.employees.forEach(e => {
-    if (e.primarySkills) {
-      e.primarySkills.forEach(skill => {
-        skillCounts[skill] = (skillCounts[skill] || 0) + 1;
-      });
+    if (e.primarySkill) {
+      skillCounts[e.primarySkill] = (skillCounts[e.primarySkill] || 0) + 1;
     }
   });
   

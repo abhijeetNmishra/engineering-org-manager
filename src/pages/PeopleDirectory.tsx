@@ -196,7 +196,7 @@ export default function PeopleDirectory() {
             const matchesSkills =
                 selectedSkills.length === 0 ||
                 selectedSkills.some(
-                    (skill) => e.primarySkills?.includes(skill) || e.secondarySkills?.includes(skill)
+                    (skill) => e.primarySkill === skill || e.secondarySkills?.includes(skill)
                 );
 
             // Workstream filter
@@ -270,16 +270,22 @@ export default function PeopleDirectory() {
         },
         {
             title: "Skills",
-            dataIndex: "primarySkills",
-            width: 200,
-            render: (arr?: TechnicalSkill[]) => (
-                <div className="skills-cell">
-                    {(arr ?? []).slice(0, 2).map((x) => (
-                        <Tag key={x} color="cyan" className="skill-tag">
+            width: 250,
+            render: (_: any, r: Employee) => (
+                <div className="skills-cell" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    <Tag color="geekblue" style={{ fontWeight: 600 }}>
+                        {r.primarySkill?.replace("Frontend - ", "FE ").replace("Backend", "BE")}
+                    </Tag>
+                    {(r.secondarySkills || []).slice(0, 1).map((x) => (
+                        <Tag key={x}>
                             {x.replace("Frontend - ", "FE ").replace("Backend", "BE")}
                         </Tag>
                     ))}
-                    {(arr ?? []).length > 2 && <Tag className="skill-tag more">+{(arr ?? []).length - 2}</Tag>}
+                    {(r.secondarySkills?.length || 0) > 1 && (
+                        <Tag className="more" title={r.secondarySkills!.slice(1).join(", ")}>
+                            +{r.secondarySkills!.length - 1}
+                        </Tag>
+                    )}
                 </div>
             ),
         },

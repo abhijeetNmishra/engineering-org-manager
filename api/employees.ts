@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ${emp.managerId || null}, 
           ${JSON.stringify(emp.workstreams || [])}, 
           ${JSON.stringify(emp.moduleOwnershipIds || [])}, 
-          ${JSON.stringify(emp.primarySkills || [])}, 
+          ${JSON.stringify(emp.primarySkill ? [emp.primarySkill] : [])}, 
           ${JSON.stringify(emp.secondarySkills || [])}, 
           ${emp.skillLevel || null}, 
           ${emp.tenure || null}, 

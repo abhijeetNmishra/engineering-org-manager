@@ -38,7 +38,8 @@ export async function setupDatabase() {
         priority    TEXT,
         effort      TEXT,
         dependencies JSONB DEFAULT '[]',
-        description TEXT
+        description TEXT,
+        icon        TEXT
       );
     `;
 

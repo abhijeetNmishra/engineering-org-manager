@@ -62,8 +62,9 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
     const skillOptions = useMemo(() => {
         const uniqueSkills = new Set(SKILL_OPTIONS);
         state.employees.forEach(e => {
-            if (e.primarySkills) {
-                e.primarySkills.forEach(skill => uniqueSkills.add(skill));
+            if (e.primarySkill) uniqueSkills.add(e.primarySkill);
+            if (e.secondarySkills) {
+                e.secondarySkills.forEach(s => uniqueSkills.add(s));
             }
         });
         return Array.from(uniqueSkills).sort().map(s => ({ value: s }));
@@ -172,17 +173,44 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
 
                 <Divider>Skills & Assignment</Divider>
 
-                <Form.Item
-                    name="primarySkills"
-                    label="Primary Skills"
-                >
-                    <Select
-                        mode="tags"
-                        placeholder="Select or type skills"
-                        options={skillOptions}
-                        tokenSeparators={[',']}
-                    />
-                </Form.Item>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <Form.Item
+                        name="primarySkill"
+                        label="Primary Skill"
+                        rules={[{ required: true, message: 'Primary skill is required' }]}
+                    >
+                        <AutoComplete
+                            placeholder="Select or type primary skill"
+                            options={skillOptions}
+                            filterOption={(inputValue, option) =>
+                                option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+                            }
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        shouldUpdate={(prev, curr) => prev.primarySkill !== curr.primarySkill}
+                    >
+                        {({ getFieldValue }) => {
+                            const primarySkill = getFieldValue('primarySkill');
+                            const filteredOptions = skillOptions.filter(o => o.value !== primarySkill);
+
+                            return (
+                                <Form.Item
+                                    name="secondarySkills"
+                                    label="Secondary Skills"
+                                >
+                                    <Select
+                                        mode="multiple"
+                                        placeholder="Select secondary skills"
+                                        options={filteredOptions}
+                                        disabled={!primarySkill}
+                                    />
+                                </Form.Item>
+                            );
+                        }}
+                    </Form.Item>
+                </div>
 
                 <Form.Item
                     name="workstreams"

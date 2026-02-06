@@ -34,6 +34,9 @@ export interface ModuleNode {
   effort?: ModuleEffort;
   dependencies?: string[]; // Module IDs this depends on
   description?: string;
+  
+  // NEW: Icon for UI visualization
+  icon?: string;
 }
 
 export interface Employee {
@@ -47,8 +50,9 @@ export interface Employee {
   notes?: string;
   
   // NEW: Skills and career progression
-  primarySkills?: TechnicalSkill[];
-  secondarySkills?: TechnicalSkill[];
+  // NEW: Skills and career progression
+  primarySkill: TechnicalSkill;
+  secondarySkills: TechnicalSkill[];
   skillLevel?: SkillLevel;
   tenure?: number; // months at company
   email?: string;

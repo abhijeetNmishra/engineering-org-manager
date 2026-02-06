@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mod = req.body;
       
       await sql`
-        INSERT INTO modules (id, name, workstream, type, parent_id, director_id, tags, health, priority, effort, dependencies, description)
+        INSERT INTO modules (id, name, workstream, type, parent_id, director_id, tags, health, priority, effort, dependencies, description, icon)
         VALUES (
           ${mod.id},
           ${mod.name},
@@ -27,7 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ${mod.priority || null},
           ${mod.effort || null},
           ${JSON.stringify(mod.dependencies || [])},
-          ${mod.description || null}
+          ${mod.description || null},
+          ${mod.icon || null}
         )
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
@@ -40,7 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           priority = EXCLUDED.priority,
           effort = EXCLUDED.effort,
           dependencies = EXCLUDED.dependencies,
-          description = EXCLUDED.description;
+          description = EXCLUDED.description,
+          icon = EXCLUDED.icon;
       `;
       
       return res.status(200).json({ success: true });

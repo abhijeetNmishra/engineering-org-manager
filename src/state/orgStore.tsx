@@ -111,12 +111,48 @@ function reducer(state: ShiptOrgState, action: Action): ShiptOrgState {
     }
 }
 
+// Migration helper for legacy data
+function migrateState(state: any): ShiptOrgState {
+    if (!state || !state.employees) return state;
+
+    const employees = state.employees.map((e: any) => {
+        // Migration: primarySkills[] -> primarySkill + secondarySkills[]
+        if (Array.isArray(e.primarySkills)) {
+            const primary = e.primarySkills[0] || "Backend"; // Default if empty
+            const secondary = e.primarySkills.slice(1);
+            const existingSec = Array.isArray(e.secondarySkills) ? e.secondarySkills : [];
+
+            // Create new object without primarySkills
+            const { primarySkills, ...rest } = e;
+            return {
+                ...rest,
+                primarySkill: primary,
+                secondarySkills: [...secondary, ...existingSec]
+            };
+        }
+        return e;
+    });
+
+    // Migration: Backfill icons for modules from mock data if missing
+    const modules = (state.modules || []).map((m: any) => {
+        if (!m.icon) {
+            const mockMod = mockOrgState.modules.find(mock => mock.id === m.id);
+            if (mockMod && mockMod.icon) {
+                return { ...m, icon: mockMod.icon };
+            }
+        }
+        return m;
+    });
+
+    return { ...state, employees, modules };
+}
+
 // Load state from localStorage
 function loadState(): ShiptOrgState {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
-            return JSON.parse(stored);
+            return migrateState(JSON.parse(stored));
         }
     } catch (error) {
         console.error("Failed to load state from localStorage:", error);
