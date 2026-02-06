@@ -13,6 +13,7 @@ import { useOrgStore } from "../state/orgStore";
 import type { ShiptOrgState } from "../domain/types";
 import { ModuleManager } from "../components/ModuleManager";
 import { OwnershipMatrix } from "../components/OwnershipMatrix";
+import { BulkPeopleUpload } from "../components/BulkPeopleUpload";
 
 const { Title, Paragraph } = Typography;
 
@@ -163,6 +164,15 @@ export default function ImportExport() {
     const items = [
         {
             key: '1',
+            label: <span><CloudUploadOutlined /> Bulk Upload (New)</span>,
+            children: (
+                <div style={{ paddingTop: 20 }}>
+                    <BulkPeopleUpload />
+                </div>
+            )
+        },
+        {
+            key: '2',
             label: <span><AppstoreOutlined /> Module Manager</span>,
             children: (
                 <div>
@@ -174,8 +184,8 @@ export default function ImportExport() {
             )
         },
         {
-            key: '2',
-            label: <span><CloudUploadOutlined /> Bulk Data Tools</span>,
+            key: '3',
+            label: <span><FileTextOutlined /> Legacy Imports</span>,
             children: (
                 <Card className="glass">
                     <Paragraph className="muted">
@@ -234,7 +244,7 @@ export default function ImportExport() {
             )
         },
         {
-            key: '3',
+            key: '4',
             label: <span><SafetyCertificateOutlined /> Ownership Matrix</span>,
             children: (
                 <div>

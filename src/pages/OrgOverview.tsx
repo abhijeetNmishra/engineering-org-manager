@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Row, Col, Statistic, Tag, Tooltip } from "antd";
 import { TeamOutlined, AppstoreOutlined, ApartmentOutlined, UserOutlined } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { useOrgStore } from "../state/orgStore";
 import { computeOrgStats, computeModuleSummaries, getModuleColor } from "../domain/orgMetrics";
+import { ModuleDeepDiveOverlay } from "../components/ModuleDeepDiveOverlay";
 import type { ModuleSummary } from "../domain/types";
 import "./OrgOverview.css";
 
@@ -130,6 +131,7 @@ function ModuleCard({
 
 export function OrgOverview() {
     const { state } = useOrgStore();
+    const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
     // Compute stats and module summaries
     const orgStats = React.useMemo(() => computeOrgStats(state), [state]);
@@ -242,10 +244,7 @@ export function OrgOverview() {
                             <ModuleCard
                                 module={module}
                                 index={index}
-                                onClick={() => {
-                                    // Navigate to module details or filter
-                                    console.log('Navigate to module:', module.moduleName);
-                                }}
+                                onClick={() => setSelectedModuleId(module.moduleId)}
                             />
                         </Col>
                     ))}
@@ -258,6 +257,12 @@ export function OrgOverview() {
                     </div>
                 )}
             </div>
+
+            {/* Deep Dive Overlay */}
+            <ModuleDeepDiveOverlay
+                moduleId={selectedModuleId}
+                onClose={() => setSelectedModuleId(null)}
+            />
         </div>
     );
 }
