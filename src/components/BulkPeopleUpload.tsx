@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, Button, Card, Typography, Space, Progress, List, Table } from "antd";
+import { Upload, Button, Card, Typography, Space, Progress, List, Table, Modal, Input, message } from "antd";
 import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import Papa from "papaparse";
@@ -29,6 +29,27 @@ export function BulkPeopleUpload() {
     const [processing, setProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
     const [logs, setLogs] = useState<{ type: "success" | "warning" | "error"; message: string }[]>([]);
+
+    // Danger Zone State
+    const [showResetEmployeesModal, setShowResetEmployeesModal] = useState(false);
+    const [showResetModulesModal, setShowResetModulesModal] = useState(false);
+    const [resetValidationText, setResetValidationText] = useState("");
+
+    const handleResetEmployees = () => {
+        if (resetValidationText !== "DELETE ALL EMPLOYEES") return;
+        dispatch({ type: "RESET_EMPLOYEES" });
+        message.success("All employees have been deleted.");
+        setShowResetEmployeesModal(false);
+        setResetValidationText("");
+    };
+
+    const handleResetModules = () => {
+        if (resetValidationText !== "DELETE ALL WORKSTREAMS") return;
+        dispatch({ type: "RESET_MODULES" });
+        message.success("All workstreams and submodules have been deleted.");
+        setShowResetModulesModal(false);
+        setResetValidationText("");
+    };
 
     const handleUpload = async (file: File) => {
         setProcessing(true);
@@ -288,10 +309,12 @@ export function BulkPeopleUpload() {
         { title: 'Example', dataIndex: 'ex3', render: (t: string) => <Text type="secondary">{t}</Text> },
     ];
 
+    // Replace the Danger Zone and Modals part:
     return (
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
             <Card className="glass-card">
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    {/* ... (Keep Header and Upload logic same) ... */}
                     <div style={{ textAlign: "center" }}>
                         <Title level={3}>Bulk People Upload</Title>
                         <Paragraph type="secondary" style={{ maxWidth: 600, margin: "0 auto 20px" }}>
@@ -339,6 +362,67 @@ export function BulkPeopleUpload() {
                             style={{ maxHeight: 300, overflow: "auto", background: "rgba(0,0,0,0.2)" }}
                         />
                     )}
+
+                    <div style={{ marginTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 20 }}>
+                        <Title level={5} type="danger">Danger Zone</Title>
+                        <Paragraph type="secondary">
+                            These actions are irreversible. Please type the confirmation phrase exactly to proceed.
+                        </Paragraph>
+                        <Space wrap>
+                            <Button danger onClick={() => { setShowResetEmployeesModal(true); setResetValidationText(""); }}>
+                                Delete All Employees
+                            </Button>
+                            <Button danger onClick={() => { setShowResetModulesModal(true); setResetValidationText(""); }}>
+                                Delete All Workstreams
+                            </Button>
+                        </Space>
+                    </div>
+
+                    {/* Reset Employees Modal */}
+                    <Modal
+                        title={<span style={{ color: "#cf1322" }}>⚠️ Irreversible: Delete All Employees</span>}
+                        open={showResetEmployeesModal}
+                        onOk={handleResetEmployees}
+                        onCancel={() => setShowResetEmployeesModal(false)}
+                        okText="Delete All Employees"
+                        okType="danger"
+                        okButtonProps={{ disabled: resetValidationText !== "DELETE ALL EMPLOYEES" }}
+                    >
+                        <Paragraph>
+                            This will <b>permanently delete ALL employee records</b>. Workstreams and Modules will be preserved.
+                        </Paragraph>
+                        <Paragraph>
+                            Type <b>DELETE ALL EMPLOYEES</b> to confirm.
+                        </Paragraph>
+                        <Input
+                            placeholder="Type DELETE ALL EMPLOYEES"
+                            value={resetValidationText}
+                            onChange={e => setResetValidationText(e.target.value)}
+                        />
+                    </Modal>
+
+                    {/* Reset Modules Modal */}
+                    <Modal
+                        title={<span style={{ color: "#cf1322" }}>⚠️ Irreversible: Delete All Workstreams</span>}
+                        open={showResetModulesModal}
+                        onOk={handleResetModules}
+                        onCancel={() => setShowResetModulesModal(false)}
+                        okText="Delete All Workstreams"
+                        okType="danger"
+                        okButtonProps={{ disabled: resetValidationText !== "DELETE ALL WORKSTREAMS" }}
+                    >
+                        <Paragraph>
+                            This will <b>permanently delete ALL workstreams and submodules</b>. Employees will remain but be unassigned.
+                        </Paragraph>
+                        <Paragraph>
+                            Type <b>DELETE ALL WORKSTREAMS</b> to confirm.
+                        </Paragraph>
+                        <Input
+                            placeholder="Type DELETE ALL WORKSTREAMS"
+                            value={resetValidationText}
+                            onChange={e => setResetValidationText(e.target.value)}
+                        />
+                    </Modal>
                 </Space>
             </Card>
         </div>

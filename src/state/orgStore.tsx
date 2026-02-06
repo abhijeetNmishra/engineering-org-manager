@@ -1,13 +1,20 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
 import { orgApi } from "../utils/orgApi";
 import type { Employee, ModuleNode, Ownership, ShiptOrgState } from "../domain/types";
-import { mockOrgState } from "../domain/mockData";
 import { AppLoader } from "../components/AppLoader";
 
 const STORAGE_KEY = "shipt-org-manager-state";
 
+// Initial Empty State
+const initialOrgState: ShiptOrgState = {
+    employees: [],
+    modules: [],
+    ownership: []
+};
+
 type Action =
-    | { type: "RESET_DEMO" }
+    | { type: "RESET_EMPLOYEES" }
+    | { type: "RESET_MODULES" }
     | { type: "IMPORT_STATE"; payload: ShiptOrgState }
     | { type: "UPDATE_MANAGER"; employeeId: string; managerId?: string }
     | { type: "UPSERT_OWNERSHIP"; moduleId: string; ownerId: string; ownershipType: Ownership["ownershipType"] }
@@ -21,8 +28,20 @@ type Action =
 
 function reducer(state: ShiptOrgState, action: Action): ShiptOrgState {
     switch (action.type) {
-        case "RESET_DEMO":
-            return structuredClone(mockOrgState);
+        case "RESET_EMPLOYEES":
+            return {
+                ...state,
+                employees: [],
+                ownership: [] // Remove ownerships as they depend on employees
+            };
+
+        case "RESET_MODULES":
+            return {
+                ...state,
+                modules: [],
+                ownership: [] // Remove ownerships as they depend on modules
+                // Employees remain but loose their workstream/module associations in UI context
+            };
 
         case "IMPORT_STATE":
             return action.payload;
@@ -136,10 +155,8 @@ function migrateState(state: any): ShiptOrgState {
     // Migration: Backfill icons for modules from mock data if missing
     const modules = (state.modules || []).map((m: any) => {
         if (!m.icon) {
-            const mockMod = mockOrgState.modules.find(mock => mock.id === m.id);
-            if (mockMod && mockMod.icon) {
-                return { ...m, icon: mockMod.icon };
-            }
+            // Keep as is, no fallback available
+            return m;
         }
         return m;
     });
@@ -157,7 +174,7 @@ function loadState(): ShiptOrgState {
     } catch (error) {
         console.error("Failed to load state from localStorage:", error);
     }
-    return structuredClone(mockOrgState);
+    return structuredClone(initialOrgState);
 }
 
 // Save state to localStorage
@@ -178,7 +195,7 @@ type Store = {
 const OrgStoreContext = createContext<Store | null>(null);
 
 export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
-    const [state, dispatchLocal] = useReducer(reducer, mockOrgState); // Start with mock/empty, load later
+    const [state, dispatchLocal] = useReducer(reducer, initialOrgState); // Start empty
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Initial load from Server -> LocalStorage -> Mock
@@ -271,9 +288,21 @@ export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
                     // Full state sync
                     await orgApi.saveState(action.payload);
                     break;
-                case "RESET_DEMO":
-                    // Reset to mock state
-                    await orgApi.saveState(mockOrgState);
+                case "RESET_EMPLOYEES":
+                    // Reset to empty state for employees/ownership
+                    // We need to construct the full new state to save it?
+                    // Actually `state` here is stale. But we know what RESET_EMPLOYEES does.
+                    // Let's assume the reducer did its job and state will update? 
+                    // No, `state` in this closure is OLD.
+
+                    // We need to save the result.
+                    // The simplest way is to manually construct what we expect.
+                    const resetState = {
+                        ...state,
+                        employees: [],
+                        ownership: []
+                    };
+                    await orgApi.saveState(resetState);
                     break;
             }
         } catch (error) {
