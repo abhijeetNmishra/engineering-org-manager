@@ -304,6 +304,15 @@ export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
                     };
                     await orgApi.saveState(resetState);
                     break;
+                case "RESET_MODULES":
+                    // Reset to empty state for modules/ownership
+                    const resetModState = {
+                        ...state,
+                        modules: [],
+                        ownership: []
+                    };
+                    await orgApi.saveState(resetModState);
+                    break;
             }
         } catch (error) {
             console.error("Failed to sync action to backend:", action.type, error);
