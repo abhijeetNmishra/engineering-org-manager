@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+
 import {
     Card,
     Input,
@@ -10,6 +11,7 @@ import {
     Space,
     Popconfirm,
     Badge,
+    message,
 } from "antd";
 import {
     PlusOutlined,
@@ -139,6 +141,80 @@ function QuickStats({
     );
 }
 
+// Editable Cell Component
+
+
+// Better EditableRender that manages the switch between View/Edit
+function EditableValue({
+    value,
+    record,
+    field,
+    type,
+    options,
+    renderView,
+    onSave,
+}: {
+    value: any;
+    record: Employee;
+    field: string;
+    type: "text" | "select" | "multi-select";
+    options?: { label: string; value: string }[];
+    renderView: (val: any) => React.ReactNode;
+    onSave: (id: string, updates: any) => void;
+}) {
+    const [editing, setEditing] = useState(false);
+    const [tempValue, setTempValue] = useState(value);
+
+    // Sync temp value when prop changes (e.g. from other edits)
+    useMemo(() => setTempValue(value), [value]);
+
+    const handleSave = () => {
+        setEditing(false);
+        if (tempValue !== value) {
+            onSave(record.id, { [field]: tempValue });
+        }
+    };
+
+    if (editing) {
+        if (type === "text") {
+            return (
+                <Input
+                    autoFocus
+                    value={tempValue}
+                    onChange={(e) => setTempValue(e.target.value)}
+                    onBlur={handleSave}
+                    onPressEnter={handleSave}
+                />
+            );
+        }
+        return (
+            <Select
+                autoFocus
+                defaultOpen
+                value={tempValue}
+                mode={type === "multi-select" ? "multiple" : undefined}
+                style={{ width: "100%", minWidth: type === 'multi-select' ? 200 : 120 }}
+                options={options}
+                onChange={setTempValue}
+                onBlur={handleSave}
+                // Stop click propagation to prevent opening row drawer if we add that later
+                onClick={(e) => e.stopPropagation()}
+            />
+        );
+    }
+
+    return (
+        <div
+            className="editable-cell-view"
+            onClick={() => setEditing(true)}
+            style={{ cursor: "pointer", minHeight: 24, padding: "2px 4px", borderRadius: 4 }}
+            title="Click to edit"
+        >
+            {renderView(value)}
+        </div>
+    );
+}
+
 export default function PeopleDirectory() {
     const { state, dispatch } = useOrgStore();
 
@@ -219,6 +295,9 @@ export default function PeopleDirectory() {
         return m ? m.name : "Unknown";
     };
 
+    // Infinite Scroll state
+    const [visibleCount, setVisibleCount] = useState(30);
+
     // Clear all filters
     const clearFilters = () => {
         setQuery("");
@@ -227,32 +306,79 @@ export default function PeopleDirectory() {
         setSelectedWorkstream(null);
         setSelectedStatus(null);
         setSelectedLocation(null);
+        setVisibleCount(30); // Reset scroll
     };
+
+    // Reset pagination when filters change
+    useMemo(() => {
+        setVisibleCount(30);
+    }, [query, showLeadersOnly, selectedSkills, selectedWorkstream, selectedStatus, selectedLocation]);
+
+    // Handle Infinite Scroll
+    useEffect(() => {
+        const tableBody = document.querySelector(".people-table .ant-table-body");
+        if (!tableBody) return;
+
+        const handleScroll = (e: Event) => {
+            const target = e.target as HTMLElement;
+            if (target.scrollHeight - target.scrollTop - target.clientHeight < 100) {
+                setVisibleCount((prev) => {
+                    if (prev >= filtered.length) return prev;
+                    return prev + 30;
+                });
+            }
+        };
+
+        tableBody.addEventListener("scroll", handleScroll);
+        return () => tableBody.removeEventListener("scroll", handleScroll);
+    }, [filtered.length]); // Re-bind if filtered list changes size significantly (though body usually stays)
 
     const hasActiveFilters =
         query || showLeadersOnly || selectedSkills.length > 0 || selectedWorkstream || selectedStatus || selectedLocation;
 
+    // Options for inline editing
+    const managerOptions = useMemo(() =>
+        state.employees.map(e => ({ label: e.name, value: e.id })).sort((a, b) => a.label.localeCompare(b.label)),
+        [state.employees]);
+
+    const skillOptions = AllSkills.map(s => ({ label: s, value: s }));
+    const workstreamOptions = workstreams.map(w => ({ label: w, value: w }));
+    const locationOptions = AllLocations.map(l => ({ label: l, value: l }));
+    const statusOptions = [
+        { label: "Active", value: "active" },
+        { label: "On Leave", value: "on_leave" },
+        { label: "Open Role", value: "open" },
+    ];
+
     // Table columns
     const columns: ColumnsType<Employee> = [
         {
-            title: "Name",
+            title: "Name & Title",
             dataIndex: "name",
-            width: 240,
+            width: 280,
             sorter: (a, b) => a.name.localeCompare(b.name),
-            render: (v: string, r) => {
+            render: (_: string, r) => {
                 const isLeader = leaderIds.has(r.id);
                 const leaderMetrics = isLeader ? computeLeaderMetrics(state, r.id) : null;
                 return (
                     <div className="name-cell">
                         <div className="name-row">
-                            <span className="employee-name">{v}</span>
+                            <span className="employee-name">{r.name}</span>
                             {isLeader && (
                                 <Tag color="purple" className="leader-tag">
                                     <TeamOutlined /> {leaderMetrics?.directReports}
                                 </Tag>
                             )}
                         </div>
-                        <div className="title-row">{r.title}</div>
+                        {/* Title is editable */}
+                        <EditableValue
+                            value={r.title}
+                            record={r}
+                            field="title"
+                            type="text"
+                            onSave={handleInlineSave}
+                            renderView={(val) => <div className="title-row">{val || "No Title"}</div>}
+                        />
                         {r.skillLevel && (
                             <Tag color="blue" className="skill-level-tag">
                                 {r.skillLevel}
@@ -265,69 +391,148 @@ export default function PeopleDirectory() {
         {
             title: "Manager",
             dataIndex: "managerId",
-            width: 140,
-            render: (v) => <span className="manager-name">{managerName(v)}</span>,
+            width: 180,
+            render: (v, r) => (
+                <EditableValue
+                    value={v}
+                    record={r}
+                    field="managerId"
+                    type="select"
+                    options={managerOptions}
+                    onSave={handleInlineSave}
+                    renderView={(val) => <span className="manager-name">{managerName(val) || "—"}</span>}
+                />
+            ),
         },
         {
             title: "Skills",
             width: 250,
             render: (_: any, r: Employee) => (
-                <div className="skills-cell" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    <Tag color="geekblue" style={{ fontWeight: 600 }}>
-                        {r.primarySkill?.replace("Frontend - ", "FE ").replace("Backend", "BE")}
-                    </Tag>
-                    {(r.secondarySkills || []).slice(0, 1).map((x) => (
-                        <Tag key={x}>
-                            {x.replace("Frontend - ", "FE ").replace("Backend", "BE")}
-                        </Tag>
-                    ))}
-                    {(r.secondarySkills?.length || 0) > 1 && (
-                        <Tag className="more" title={r.secondarySkills!.slice(1).join(", ")}>
-                            +{r.secondarySkills!.length - 1}
-                        </Tag>
+                <EditableValue
+                    value={r.primarySkill ? [r.primarySkill, ...(r.secondarySkills || [])] : []}
+                    // Logic mismatch: Primary vs Secondary. 
+                    // PRD says "Primary Skill" and "Secondary Skills" are editable.
+                    // Trying to combine them into one multi-select might be confusing if backend treats them differently.
+                    // For now, let's just make the whole cell a "Skills" editor that maps to primary/secondary?
+                    // Or maybe just secondary for now? 
+                    // PRD: "Primary Skill... Secondary Skills".
+                    // Let's implement editing for Primary Skill separately? 
+                    // The UI combines them. 
+                    // Let's try to edit them as "Skills" (Primary is first?).
+                    // Actually, simpler to just edit "Primary Skill" via a small dropdown interaction?
+                    // For now, let's just use Multi-Select for Secondary, and maybe separate Primary?
+                    // Given the constraints, let's try to make the whole cell editable as a multi-select, 
+                    // and assume the first one is Primary?
+                    // That's a logic change.
+                    // Let's stick to: Edit Primary (Select) + Edit Secondary (Multi).
+                    // But visual layout is one cell.
+                    // Let's wrap the whole thing. On save, first item = primary, rest = secondary.
+                    record={r}
+                    field="skills_virtual" // Custom field handling needed in onSave?
+                    type="multi-select"
+                    options={skillOptions}
+                    onSave={(id, updates) => {
+                        // Custom handler for virtual field
+                        const skills = updates['skills_virtual'] as unknown as string[];
+                        if (skills && skills.length > 0) {
+                            handleInlineSave(id, {
+                                primarySkill: skills[0] as TechnicalSkill,
+                                secondarySkills: skills.slice(1) as TechnicalSkill[]
+                            });
+                        } else {
+                            handleInlineSave(id, { primarySkill: 'Frontend - Web', secondarySkills: [] }); // Fallback?
+                        }
+                    }}
+                    renderView={() => (
+                        <div className="skills-cell" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            <Tag color="geekblue" style={{ fontWeight: 600 }}>
+                                {r.primarySkill?.replace("Frontend - ", "FE ").replace("Backend", "BE")}
+                            </Tag>
+                            {(r.secondarySkills || []).slice(0, 1).map((x) => (
+                                <Tag key={x}>
+                                    {x.replace("Frontend - ", "FE ").replace("Backend", "BE")}
+                                </Tag>
+                            ))}
+                            {(r.secondarySkills?.length || 0) > 1 && (
+                                <Tag className="more" title={r.secondarySkills!.slice(1).join(", ")}>
+                                    +{r.secondarySkills!.length - 1}
+                                </Tag>
+                            )}
+                        </div>
                     )}
-                </div>
+                />
             ),
         },
         {
             title: "Workstreams",
             dataIndex: "workstreams",
-            width: 160,
-            render: (arr: WorkstreamKey[]) => (
-                <div className="workstreams-cell">
-                    {arr.slice(0, 1).map((x) => (
-                        <Tag key={x}>{x}</Tag>
-                    ))}
-                    {arr.length > 1 && <Tag className="more">+{arr.length - 1}</Tag>}
-                </div>
+            width: 200,
+            render: (arr: WorkstreamKey[], r) => (
+                <EditableValue
+                    value={arr}
+                    record={r}
+                    field="workstreams"
+                    type="multi-select"
+                    options={workstreamOptions}
+                    onSave={handleInlineSave}
+                    renderView={(val: string[]) => (
+                        <div className="workstreams-cell">
+                            {val.slice(0, 1).map((x) => (
+                                <Tag key={x}>{x}</Tag>
+                            ))}
+                            {val.length > 1 && <Tag className="more">+{val.length - 1}</Tag>}
+                            {val.length === 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Unassigned</span>}
+                        </div>
+                    )}
+                />
             ),
         },
         {
             title: "Location",
             dataIndex: "location",
-            width: 90,
+            width: 110,
             filters: AllLocations.map((l) => ({ text: l, value: l })),
             onFilter: (value, record) => record.location === value,
-            render: (v) => <Tag>{v}</Tag>,
+            render: (v, r) => (
+                <EditableValue
+                    value={v}
+                    record={r}
+                    field="location"
+                    type="select"
+                    options={locationOptions}
+                    onSave={handleInlineSave}
+                    renderView={(val) => <Tag>{val}</Tag>}
+                />
+            ),
         },
         {
             title: "Status",
             dataIndex: "status",
-            width: 100,
-            render: (v?: EmployeeStatus) => {
-                const status = v || "active";
-                const config = {
-                    active: { color: "success" as const, label: "Active" },
-                    on_leave: { color: "warning" as const, label: "On Leave" },
-                    open: { color: "default" as const, label: "Open" },
-                };
-                return <Badge status={config[status].color} text={config[status].label} />;
-            },
+            width: 120,
+            render: (v: EmployeeStatus | undefined, r) => (
+                <EditableValue
+                    value={v || "active"}
+                    record={r}
+                    field="status"
+                    type="select"
+                    options={statusOptions}
+                    onSave={handleInlineSave}
+                    renderView={(val) => {
+                        const status = val || "active";
+                        const config = {
+                            active: { color: "success" as const, label: "Active" },
+                            on_leave: { color: "warning" as const, label: "On Leave" },
+                            open: { color: "default" as const, label: "Open" },
+                        };
+                        return <Badge status={config[status as EmployeeStatus]?.color || 'default'} text={config[status as EmployeeStatus]?.label || status} />;
+                    }}
+                />
+            ),
         },
         {
             title: "",
             key: "actions",
-            width: 100,
+            width: 80,
             fixed: "right",
             render: (_, r) => (
                 <Space size="small">
@@ -335,7 +540,8 @@ export default function PeopleDirectory() {
                         type="text"
                         size="small"
                         icon={<EditOutlined />}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setSelected(r);
                             setIsNew(false);
                             setOpen(true);
@@ -344,9 +550,16 @@ export default function PeopleDirectory() {
                     <Popconfirm
                         title="Delete this person?"
                         description="Their direct reports will be reassigned to their manager."
-                        onConfirm={() => dispatch({ type: "DELETE_EMPLOYEE", employeeId: r.id })}
+                        onConfirm={(e) => {
+                            e?.stopPropagation();
+                            dispatch({ type: "DELETE_EMPLOYEE", employeeId: r.id })
+                        }}
+                        onCancel={(e) => e?.stopPropagation()}
                     >
-                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        {/* Stop propagation on delete button too to be safe */}
+                        <div onClick={e => e.stopPropagation()}>
+                            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        </div>
                     </Popconfirm>
                 </Space>
             ),
@@ -371,6 +584,16 @@ export default function PeopleDirectory() {
         }
         setOpen(false);
         setSelected(null);
+    };
+
+    // Inline Save Handler
+    const handleInlineSave = (id: string, updates: Partial<Employee>) => {
+        dispatch({
+            type: "UPDATE_EMPLOYEE",
+            employeeId: id,
+            updates: updates,
+        });
+        message.success("Saved");
     };
 
     return (
@@ -485,15 +708,11 @@ export default function PeopleDirectory() {
             {/* Table */}
             <Card className="table-card">
                 <Table
-                    dataSource={filtered}
+                    dataSource={filtered.slice(0, visibleCount)}
                     columns={columns}
                     rowKey="id"
-                    pagination={{
-                        pageSize: 15,
-                        showSizeChanger: true,
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
-                    }}
-                    scroll={{ x: 1100 }}
+                    pagination={false}
+                    scroll={{ x: 1100, y: 'calc(100vh - 280px)' }} // Sticky header + scrollable body
                     size="middle"
                     className="people-table"
                     rowClassName={(record) =>

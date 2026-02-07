@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Layout, Menu, Button } from "antd";
+import { Layout, Menu, Button, ConfigProvider, theme } from "antd";
 import {
   HomeOutlined,
   TeamOutlined,
@@ -23,7 +23,7 @@ import {
 } from "./pages";
 import { Login } from "./pages/Login";
 import { OrgStoreProvider } from "./state/orgStore";
-import { useThemeEffect } from "./state/themeStore";
+import { useThemeEffect, useThemeStore } from "./state/themeStore";
 import { useAuthStore } from "./state/authStore";
 import { ThemeToggle } from "./components/ThemeToggle";
 
@@ -181,6 +181,7 @@ function AppShell() {
 
 export default function App() {
   const { isAuthenticated, checkAuth } = useAuthStore();
+  const currentTheme = useThemeStore((state) => state.theme);
 
   // Skip auth in local development (when using npm run dev)
   const isDev = import.meta.env.DEV;
@@ -204,7 +205,16 @@ export default function App() {
   // Show authenticated app
   return (
     <OrgStoreProvider>
-      <AppShell />
+      <ConfigProvider
+        theme={{
+          algorithm: currentTheme === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
+          token: {
+            colorPrimary: "#6B21EF"
+          }
+        }}
+      >
+        <AppShell />
+      </ConfigProvider>
     </OrgStoreProvider>
   );
 }

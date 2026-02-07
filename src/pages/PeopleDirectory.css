@@ -200,13 +200,18 @@
 }
 
 .people-table .ant-table-thead>tr>th {
-    background: rgba(107, 33, 239, 0.05);
+    background: var(--card-bg);
+    /* Opaque base */
+    background-image: linear-gradient(rgba(107, 33, 239, 0.05), rgba(107, 33, 239, 0.05));
+    /* Tint overlay */
     border-bottom: 1px solid var(--border-glass);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
+    z-index: 10;
+    /* Ensure above content */
 }
 
 .people-table .ant-table-tbody>tr>td {
@@ -324,7 +329,9 @@
 }
 
 [data-theme="dark"] .people-table .ant-table-thead>tr>th {
-    background: rgba(107, 33, 239, 0.08);
+    background: #0f172a;
+    /* Hardcoded dark bg to ensure opacity (approx var(--card-bg) in dark) */
+    background-image: linear-gradient(rgba(107, 33, 239, 0.08), rgba(107, 33, 239, 0.08));
 }
 
 /* Responsive */
@@ -354,4 +361,103 @@
     .filter-chips {
         width: 100%;
     }
+}
+
+/* Inline Editing */
+.editable-cell-view:hover {
+    background: var(--bg-tertiary);
+    /* Light highlight to indicate clickability */
+    border: 1px dashed var(--border-glass);
+}
+
+
+/* ========================================= */
+/* FIX: Robust Dark Mode Overrides           */
+/* ========================================= */
+
+/* Drawer Container */
+[data-theme="dark"] .ant-drawer-content {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .ant-drawer-header {
+    background-color: #0f172a !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .ant-drawer-title {
+    color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .ant-drawer-close {
+    color: #94a3b8 !important;
+}
+
+/* Page Title Integration */
+[data-theme="dark"] .page-title {
+    color: #f1f5f9;
+    /* Slate-100 */
+}
+
+[data-theme="dark"] .page-subtitle {
+    color: #94a3b8;
+    /* Slate-400 */
+}
+
+/* Force Filter Bar Selects to be Dark */
+[data-theme="dark"] .filter-bar .ant-select-selector,
+[data-theme="dark"] .filter-bar .ant-input-affix-wrapper {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #f1f5f9 !important;
+}
+
+/* Force Drawer Form Inputs to be Dark */
+[data-theme="dark"] .ant-drawer-content .ant-input,
+[data-theme="dark"] .ant-drawer-content .ant-input-number,
+[data-theme="dark"] .ant-drawer-content .ant-select-selector {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+/* Fix Select Dropdown Menu Backgrounds */
+/* Note: These are attached to body, so they need global scope */
+[data-theme="dark"] .ant-select-dropdown {
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .ant-select-item {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .ant-select-item-option-selected {
+    background-color: rgba(139, 92, 246, 0.3) !important;
+    /* purple-500/30 */
+    color: white !important;
+}
+
+[data-theme="dark"] .ant-select-item-option-active {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Input Placeholders */
+[data-theme="dark"] .ant-input::placeholder,
+[data-theme="dark"] .ant-select-selection-placeholder {
+    color: #64748b !important;
+    /* Slate-500 */
+}
+
+/* Remove white background from any Select in dark mode */
+[data-theme="dark"] .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+    background-color: #1e293b;
+    border-color: #334155;
+}
+
+/* Icons in Selects (Shift arrow color) */
+[data-theme="dark"] .ant-select-arrow,
+[data-theme="dark"] .ant-select-clear {
+    color: #94a3b8 !important;
 }
