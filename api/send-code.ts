@@ -7,13 +7,13 @@ const redis = new Redis(process.env.KV_REDIS_URL || '');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Parse ALLOWED_EMAILS: handles commas, semicolons, newlines, and removes optional quotes
+// Parse ALLOWED_EMAILS: Handles comma lists, JSON arrays, quotes, newlines, semicolons
 const rawAllowed = process.env.ALLOWED_EMAILS || '';
 const ALLOWED_EMAILS = rawAllowed
-  .replace(/['"]/g, '') // Remove quotes
-  .split(/[,\n;]+/)     // Split by common delimiters
+  .replace(/[\[\]'"]/g, '') // Aggressively remove brackets and quotes (handle JSON array strings)
+  .split(/[,\n;\s]+/)       // Split by comma, newline, semicolon, OR whitespace
   .map(e => e.trim().toLowerCase())
-  .filter(e => e.length > 0); // Remove empty strings
+  .filter(e => e.length > 0 && e.includes('@')); // Remove empty strings and ensure basic validity
 const CODE_EXPIRY_SECONDS = 10 * 60; // 10 minutes
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const MAX_ATTEMPTS = 3;
