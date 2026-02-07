@@ -5,6 +5,11 @@ import Redis from 'ioredis';
 // Initialize Redis client
 const redis = new Redis(process.env.KV_REDIS_URL || '');
 
+// Prevent unhandled error events from crashing the lambda
+redis.on('error', (err) => {
+    console.error('[Redis Error]', err);
+});
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Parse ALLOWED_EMAILS: Handles comma lists, JSON arrays, quotes, newlines, semicolons
