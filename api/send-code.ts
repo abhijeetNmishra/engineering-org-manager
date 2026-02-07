@@ -2,8 +2,17 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Resend } from 'resend';
 import Redis from 'ioredis';
 
-// Initialize Redis client
-const redis = new Redis(process.env.KV_REDIS_URL || '');
+// Initialize Redis client with Serverless-optimized settings
+const redis = new Redis(process.env.KV_REDIS_URL || '', {
+  connectTimeout: 10000, // 10s connection timeout
+  maxRetriesPerRequest: 2, // Don't hang indefinitely
+  retryStrategy: (times) => {
+    // Retry with exponential backoff, max 2s
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  },
+  family: 0, // Auto-detect IPv4/IPv6
+});
 
 // Prevent unhandled error events from crashing the lambda
 redis.on('error', (err) => {
