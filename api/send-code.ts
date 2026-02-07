@@ -3,7 +3,15 @@ import { Resend } from 'resend';
 import Redis from 'ioredis';
 
 // Initialize Redis client with Serverless-optimized settings
-const redis = new Redis(process.env.KV_REDIS_URL || '', {
+const redisUrl = process.env.KV_REDIS_URL;
+
+if (!redisUrl) {
+  console.error('[Redis Config Error] KV_REDIS_URL is missing or empty!');
+} else {
+  console.log('[Redis Config] Initializing Redis with URL length:', redisUrl.length);
+}
+
+const redis = new Redis(redisUrl || '', {
   connectTimeout: 10000, // 10s connection timeout
   maxRetriesPerRequest: 2, // Don't hang indefinitely
   retryStrategy: (times) => {
