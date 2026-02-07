@@ -64,8 +64,12 @@ export default async function handler(
 
     // Check if email is in allowlist
     if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      console.warn(`[Auth Failure] Email denied: '${normalizedEmail}'`);
+      console.warn(`[Auth Debug] Allowed List (${ALLOWED_EMAILS.length}):`, JSON.stringify(ALLOWED_EMAILS));
+      
       return res.status(403).json({ 
-        error: 'Email not authorized. Please contact an administrator for access.' 
+        error: 'Email not authorized. Please contact an administrator for access.',
+        debug: { received: normalizedEmail, allowedCount: ALLOWED_EMAILS.length } // expose slight debug info
       });
     }
 
