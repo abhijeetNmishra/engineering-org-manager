@@ -6,7 +6,14 @@ import Redis from 'ioredis';
 const redis = new Redis(process.env.KV_REDIS_URL || '');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+
+// Parse ALLOWED_EMAILS: handles commas, semicolons, newlines, and removes optional quotes
+const rawAllowed = process.env.ALLOWED_EMAILS || '';
+const ALLOWED_EMAILS = rawAllowed
+  .replace(/['"]/g, '') // Remove quotes
+  .split(/[,\n;]+/)     // Split by common delimiters
+  .map(e => e.trim().toLowerCase())
+  .filter(e => e.length > 0); // Remove empty strings
 const CODE_EXPIRY_SECONDS = 10 * 60; // 10 minutes
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const MAX_ATTEMPTS = 3;
