@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useOrgStore } from "../state/orgStore";
 import { getModuleDeepDive } from "../domain/moduleDeepDive";
 import { getModuleColor } from "../domain/orgMetrics";
+import { getIconForModule } from "../utils/moduleIcons";
 import { ScopedOrgTree } from "./ScopedOrgTree";
 import "./ModuleDeepDiveOverlay.css";
 
@@ -95,9 +96,14 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
                             {/* Header - Sticky */}
                             <div className="deep-dive-header">
                                 <div className="deep-dive-title-section">
-                                    {data.module.icon && (
-                                        <span className="deep-dive-icon">{data.module.icon}</span>
-                                    )}
+                                    {(() => {
+                                        const smartIcon = getIconForModule(data.module.name);
+                                        const dataIcon = data.module.icon;
+                                        // Use smart icon if data icon is invalid ("folder") or missing, otherwise prefer data icon if valid
+                                        const finalIcon = (dataIcon && dataIcon !== "folder" && dataIcon.trim() !== "") ? dataIcon : smartIcon;
+
+                                        return <span className="deep-dive-icon">{finalIcon}</span>;
+                                    })()}
                                     <h2 id="deep-dive-title" className="deep-dive-title">{data.module.name}</h2>
                                     <Tag color={moduleColor}>{data.module.type}</Tag>
                                 </div>
@@ -143,7 +149,10 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
                                             {data.submodules.map(sub => (
                                                 <div key={sub.id} className="submodule-item">
                                                     <span className="submodule-icon">
-                                                        {sub.icon || "📁"}
+                                                        {(() => {
+                                                            if (sub.icon && sub.icon !== "folder" && sub.icon.trim() !== "") return sub.icon;
+                                                            return "📁";
+                                                        })()}
                                                     </span>
                                                     <span className="submodule-name">{sub.name}</span>
                                                 </div>
