@@ -1,7 +1,8 @@
 import { sql } from '@vercel/postgres';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { withAuth } from './middleware/auth.js';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/modules - List all
     if (req.method === 'GET') {
@@ -63,3 +64,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export default withAuth(handler);

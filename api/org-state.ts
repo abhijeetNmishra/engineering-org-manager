@@ -1,8 +1,9 @@
 import { sql } from '@vercel/postgres';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { ShiptOrgState } from '../src/domain/types';
+import { withAuth } from './middleware/auth.js';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/org-state - Fetch full state
     if (req.method === 'GET') {
@@ -100,3 +101,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export default withAuth(handler);
