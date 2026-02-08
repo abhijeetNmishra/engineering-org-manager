@@ -249,6 +249,14 @@ body {
     margin-bottom: 8px;
 }
 
+.sider-title .brand {
+    color: var(--sider-text) !important;
+}
+
+.sider-title .muted {
+    color: var(--sider-text-muted) !important;
+}
+
 .ant-menu-dark {
     background: transparent !important;
 }
