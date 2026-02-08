@@ -125,3 +125,19 @@ export interface DistributionItem {
   value: number;
   color?: string;
 }
+
+export interface SpanSummary {
+  role: string;
+  leaderCount: number;
+  avgSpan: number;
+  minSpan: number;
+  maxSpan: number;
+  totalReports: number;
+}
+
+export interface CompositionMetric {
+  label: string;
+  count: number;
+  percentage: number;
+  color?: string;
+}

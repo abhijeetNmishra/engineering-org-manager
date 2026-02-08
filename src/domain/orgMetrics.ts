@@ -185,8 +185,9 @@ import type {
   ModuleSummary, 
   OrgStats, 
   DistributionItem,
-  TechnicalSkill,
-  RoleLevel 
+  RoleLevel,
+  SpanSummary,
+  CompositionMetric
 } from "./types";
 
 // Color palette for modules (used in charts and badges)
@@ -451,4 +452,151 @@ export function getLeaders(state: ShiptOrgState): Employee[] {
 // Module color helper
 export function getModuleColor(workstream: string): string {
   return MODULE_COLORS[workstream] || "#6B7280";
+}
+
+// Compute span of control metrics grouped by role/title
+export function computeSpanByRole(state: ShiptOrgState): SpanSummary[] {
+  const { employees } = state;
+  const leaders = getLeaders(state);
+  const children = buildChildrenMap(employees);
+
+  // Group leaders by title
+  const leadersByTitle: Record<string, Employee[]> = {};
+  leaders.forEach(l => {
+    const title = l.title || "Unknown";
+    leadersByTitle[title] = (leadersByTitle[title] || []);
+    leadersByTitle[title].push(l);
+  });
+
+  return Object.entries(leadersByTitle).map(([role, roleLeaders]) => {
+    const spans = roleLeaders.map(l => (children.get(l.id) ?? []).length);
+    const totalReports = roleLeaders.reduce((sum, l) => sum + subtreeCount(children, l.id), 0);
+    
+    const minSpan = Math.min(...spans);
+    const maxSpan = Math.max(...spans);
+    const avgSpan = spans.reduce((a, b) => a + b, 0) / spans.length;
+
+    return {
+      role,
+      leaderCount: roleLeaders.length,
+      avgSpan: Math.round(avgSpan * 10) / 10,
+      minSpan,
+      maxSpan,
+      totalReports
+    };
+  }).sort((a, b) => b.avgSpan - a.avgSpan);
+}
+
+// Generic composition metric (e.g. by Skill, Location, Status)
+export function computeAttributeComposition(
+  state: ShiptOrgState, 
+  attribute: keyof Employee,
+  colorMap?: Record<string, string>
+): CompositionMetric[] {
+  const { employees } = state;
+  const total = employees.length;
+  if (total === 0) return [];
+
+  const counts: Record<string, number> = {};
+  
+  employees.forEach(e => {
+    let val = e[attribute];
+    // Handle array attributes (take first or treat as group?)
+    // PRD implies "distinct value of a chosen attribute". 
+    // For arrays like workstreams, usually we want "Primary" or specific handling.
+    // For now, assume scalar or take first if array (e.g. primarySkill).
+    if (Array.isArray(val)) {
+        val = val[0]; 
+    }
+    const label = (val as string) || "Unknown";
+    counts[label] = (counts[label] || 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .map(([label, count]) => ({
+      label,
+      count,
+      percentage: Math.round((count / total) * 100),
+      color: colorMap ? colorMap[label] : undefined
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// ============================================
+// HIERARCHY HELPERS
+// ============================================
+
+export function getDescendants(state: ShiptOrgState, rootId: string): Employee[] {
+  const childrenMap = buildChildrenMap(state.employees);
+  const descendants: Employee[] = [];
+  
+  function traverse(currentId: string) {
+    const kids = childrenMap.get(currentId) ?? [];
+    for (const kid of kids) {
+      descendants.push(kid);
+      traverse(kid.id);
+    }
+  }
+  
+  traverse(rootId);
+  return descendants;
+}
+
+// ============================================
+// SEMANTIC COLOR HELPERS
+// ============================================
+
+export const SKILL_COLORS: Record<string, string> = {
+  // Backend / Core
+  "Go": "#10B981", // Emerald
+  "Python": "#34D399", 
+  "Java": "#059669",
+  "Ruby": "#D946EF", // Fuchsia
+  
+  // Frontend
+  "React": "#3B82F6", // Blue
+  "TypeScript": "#60A5FA",
+  "JavaScript": "#93C5FD",
+  "Mobile": "#F59E0B", // Amber
+  "iOS": "#FBBF24",
+  "Android": "#F59E0B",
+
+  // Data
+  "Data Science": "#8B5CF6", // Violet
+  "Machine Learning": "#7C3AED",
+  "SQL": "#A78BFA",
+
+  // Product/Design
+  "Product": "#EC4899", // Pink
+  "Design": "#F472B6",
+  
+  // Default for others
+  "Unknown": "#9CA3AF"
+};
+
+export const ROLE_COLORS: Record<string, string> = {
+  // Leadership
+  "VP": "#7C3AED", // Deep Violet
+  "Director": "#8B5CF6",
+  "Senior Engineering Manager": "#EC4899", // Pink
+  "Engineering Manager": "#F472B6",
+
+  // IC Tracks
+  "Principal Engineer": "#F59E0B", // Amber (Gold)
+  "Staff Engineer": "#FBBF24",
+  "Senior Engineer": "#10B981", // Emerald
+  "Engineer": "#34D399",
+  "Associate Engineer": "#6EE7B7",
+  "Associate": "#6EE7B7",
+  
+  "Unknown": "#9CA3AF"
+};
+
+export function getSkillColor(skill: string): string {
+  // Simple check or partial match? For now direct lookup
+  return SKILL_COLORS[skill] || "#9CA3AF";
+}
+
+export function getTitleColor(title: string): string {
+  return ROLE_COLORS[title] || "#6B7280";
 }

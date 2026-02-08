@@ -9,7 +9,8 @@
 
 .intelligence-dashboard.fullscreen {
     height: 100%;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* Header */
