@@ -20,16 +20,15 @@
     --mo-header-bg: rgba(255, 255, 255, 0.05);
 }
 
-@media (prefers-color-scheme: light) {
-    :root {
-        --mo-bg-card: rgba(255, 255, 255, 0.6);
-        --mo-border-glass: rgba(0, 0, 0, 0.06);
-        --mo-bg-hover: rgba(255, 255, 255, 0.9);
-        --mo-text-primary: #1f1f1f;
-        --mo-text-secondary: #666666;
-        --mo-pill-bg: rgba(0, 0, 0, 0.04);
-        --mo-header-bg: rgba(0, 0, 0, 0.03);
-    }
+/* Light Mode Override */
+:root[data-theme="light"] {
+    --mo-bg-card: rgba(255, 255, 255, 0.6);
+    --mo-border-glass: rgba(0, 0, 0, 0.06);
+    --mo-bg-hover: rgba(255, 255, 255, 0.9);
+    --mo-text-primary: #1f1f1f;
+    --mo-text-secondary: #666666;
+    --mo-pill-bg: rgba(0, 0, 0, 0.04);
+    --mo-header-bg: rgba(0, 0, 0, 0.03);
 }
 
 .manage-org-header {
