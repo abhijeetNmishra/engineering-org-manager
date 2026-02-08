@@ -24,6 +24,7 @@ export const MODULE_ICON_MAP: Record<string, string> = {
 
     // Traffic, Discovery & Growth
     "Traffic, Discovery & Growth": "🚀",
+    "Traffic, Discovery & Confidence": "🚀", // Alias/Update
     "User Accounts & Subscriptions": "👤",
     "User Acquisition & Growth Channels": "📢",
     "Cross-Shop Onboarding & Activation": "🔀",
@@ -34,7 +35,10 @@ export const MODULE_ICON_MAP: Record<string, string> = {
     "Frontend Platform & Design Systems": "🎨",
 
     // Other
-    "MP Engineering": "⚙️"
+    "MP Engineering": "⚙️",
+
+    // Agentic
+    "Agentic Commerce": "🤖"
 };
 
 export function getIconForModule(name: string): string {

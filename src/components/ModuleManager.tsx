@@ -11,8 +11,7 @@ import {
 import { useOrgStore } from '../state/orgStore';
 import type { ModuleNode } from '../domain/types';
 import type { DataNode } from 'antd/es/tree';
-
-
+import { getIconForModule } from "../utils/moduleIcons";
 
 export const ModuleManager: React.FC = () => {
     const { state, dispatch } = useOrgStore();
@@ -138,9 +137,22 @@ export const ModuleManager: React.FC = () => {
         const m = nodeData.data as ModuleNode;
         const isRoot = !m.parentId;
 
-        // Icon Logic: Custom -> Folder(Root) -> File(Sub)
+        // Icon Logic: Map -> Custom -> Folder(Root) -> File(Sub)
         const IconDisplay = () => {
-            if (m.icon) return <span style={{ marginRight: 8, fontSize: 16 }}>{m.icon}</span>;
+            // 1. Try smart map first for Roots
+            if (isRoot) {
+                const smartIcon = getIconForModule(m.name);
+                if (smartIcon && smartIcon !== "📁") {
+                    return <span style={{ marginRight: 8, fontSize: 16 }}>{smartIcon}</span>;
+                }
+            }
+
+            // 2. Use user-defined icon if valid (ignore "folder" text artifact)
+            if (m.icon && m.icon !== "folder" && m.icon.trim() !== "") {
+                return <span style={{ marginRight: 8, fontSize: 16 }}>{m.icon}</span>;
+            }
+
+            // 3. Fallback to Antd icons
             return isRoot ? <FolderOutlined style={{ marginRight: 8 }} /> : <FileOutlined style={{ marginRight: 8 }} />;
         };
 
