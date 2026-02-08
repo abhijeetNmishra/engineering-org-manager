@@ -1,164 +1,136 @@
 # Shipt Intranet App: Org Manager - Fork & Deploy Guide
 
 ## 1. Overview
-This guide documents how to fork the `shipt-org-manager` repository, set it up for local development, and deploy it to a **Staging** environment (Vercel). The goal is to run a copy of the Org Manager for internal Shipt intranet use.
+This guide documents how to fork the `shipt-org-manager` repository and deploy it to the **Shipt Intranet** (GCP/Docker). The goal is to run an internal instance of the Org Manager on our own infrastructure.
 
-**Staging Definition**: A cloud-hosted environment (Vercel) connected to a test database (Vercel Postgres) and test cache (Vercel KV), protected by email authentication.
+**Important**: This application was originally designed for a serverless runtime. To run it in a standard Docker container on GCP, you must use a Node.js server adapter (like Express) to serve the API endpoints.
 
 ## 2. Prerequisites
 - **Node.js**: v20 (LTS) or higher.
-- **Package Manager**: `pnpm` (preferred) or `npm`.
-- **Git**: Access to [Shipt GitHub Organization](https://github.com/<SHIPT_GITHUB_ORG>).
-- **Vercel Account**: Access to Shipt Vercel team (for staging deployment).
-- **Docker** (Optional): For running local Postgres/Redis containers.
+- **Infrastructure**:
+  - **Postgres Database**: Cloud SQL or similar.
+  - **Redis**: Memorystore or similar (for session management).
+- **Git**: Access to [Shipt GitHub Organization](https://github.com/shipt).
+- **Docker**: For containerizing the application.
 
-## 3. Forking the Repo
-1. Navigate to the upstream repository: `https://github.com/abhijeetNmishra/engineering-org-manager`
-2. Click **Fork** in the top-right corner.
-3. Select **Shipt** organization as the owner.
-4. Repository Name: `shipt-intranet-org-manager` (recommended convention).
-5. Click **Create fork**.
-
-### CLI Alternative
-```bash
-git clone https://github.com/abhijeetNmishra/engineering-org-manager.git shipt-intranet-org-manager
-cd shipt-intranet-org-manager
-git remote rename origin upstream
-git remote add origin git@github.com:<SHIPT_GITHUB_ORG>/shipt-intranet-org-manager.git
-git push -u origin main
-```
+## 3. Forking Strategy (Critical)
+1. Fork `abhijeetNmishra/engineering-org-manager` to the **Shipt** GitHub organization.
+2. **Naming**: `shipt-intranet-org-manager` (recommended).
+3. **No Push Upstream**: This fork is for internal Shipt consumption only.
+   - **Do:** Pull changes from upstream to get latest features.
+   - **Do NOT:** Push internal configuration, secrets, or Shipt-specific data to the public upstream repo.
 
 ## 4. Local Development Setup
+1. **Clone**: `git clone git@github.com:shipt/shipt-intranet-org-manager.git`
+2. **Install**: `npm install` (or `pnpm install`)
+3. **Environment**: Copy `.env.example` to `.env.local`
+   ```bash
+   cp .env.example .env.local
+   ```
+4. **Local DBs** (Docker):
+   ```bash
+   # Run Postgres & Redis containers
+   docker run --name shipt-org-db -e POSTGRES_PASSWORD=docker -e POSTGRES_USER=postgres -e POSTGRES_DB=shipt_org -p 5432:5432 -d postgres
+   docker run --name shipt-org-redis -p 6379:6379 -d redis
+   ```
+5. **Config**: Update `.env.local` with local connection strings:
+   ```env
+   POSTGRES_URL="postgresql://postgres:docker@localhost:5432/shipt_org"
+   KV_REDIS_URL="redis://localhost:6379"
+   ALLOWED_EMAILS="user@shipt.com"
+   # JWT_SECRET: Generate secure string
+   ```
+6. **Init DB**: `npx tsx api/setup-db.ts`
+7. **Run**: `npm run dev`
 
-### 1. Clone & Install
+## 5. Environment Variables for Production (GCP)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `POSTGRES_URL` | Cloud SQL Connection String | `postgresql://user:pass@10.x.x.x:5432/db` |
+| `KV_REDIS_URL` | Memorystore Connection String | `redis://10.x.x.x:6379` |
+| `JWT_SECRET` | Secret for signing auth tokens | Log into Vault to generate/retrieve |
+| `ALLOWED_EMAILS` | Auth allowlist (comma-separated) | `*@shipt.com` (Requires code change) or strict list |
+| `PORT` | Port for the container to listen on | `3000` (Default) |
+
+### ⚠️ Critical Code Changes Needed
+Before deploying, you **must** modify the following files:
+
+1.  **Email Service (`api/send-code.ts`)**:
+    The upstream repo depends on an external service. Replace the `Resend` implementation with Shipt's internal SMTP relay or approved email service.
+    ```typescript
+    // REMOVE: import { Resend } from 'resend';
+    // ADD: import { sendEmail } from './internal-mailer';
+    ```
+
+2.  **API Entrypoint**:
+    The generic `api/` files are written for a serverless runtime. Create a `server.js` (Express/Fastify) to serve these endpoints in a Docker container.
+
+## 6. Docker Deployment
+
+### 1. Create Server Entrypoint (`server.js`)
+Create a simple Express server to handle API routes and serve the static frontend.
+
+```javascript
+/* Simple Adapter for Docker Runtime */
+import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import setupDb from './api/setup-db.js'; // Ensure this exports a function
+import authHandler from './api/verify.js'; // Adapt handlers as needed
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(express.static('dist'));
+
+// API Routes (Adapt your handlers here)
+app.post('/api/verify', async (req, res) => {
+    // Call verification logic
+});
+
+// SPA Fallback
+app.get('*', (req, res) => {
+    res.sendFile(join(dirname(fileURLToPath(import.meta.url)), 'dist', 'index.html'));
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+```
+
+### 2. Dockerfile
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/api ./api
+COPY server.js ./server.js
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+## 7. Database Migrations (GCP)
+Tasks like table creation should be run as a **Job** or strictly controlled process, not on app startup (to avoid race conditions).
+
+**Command**:
 ```bash
-git clone git@github.com:<SHIPT_GITHUB_ORG>/shipt-intranet-org-manager.git
-cd shipt-intranet-org-manager
-pnpm install
-# OR
-npm install
+POSTGRES_URL="<CLOUD_SQL_URL>" npx tsx api/setup-db.ts
 ```
 
-### 2. Environment Variables
-Create `.env.local` by copying the example:
-```bash
-cp .env.example .env.local
-```
-Fill in the `RESEND_API_KEY` and `JWT_SECRET` (see Section 5 for details).
-
-### 3. Local Database (Docker)
-Start a local Postgres and Redis instance:
-```bash
-# Run Postgres
-docker run --name shipt-org-db -e POSTGRES_PASSWORD=docker -e POSTGRES_USER=postgres -e POSTGRES_DB=shipt_org -p 5432:5432 -d postgres
-
-# Run Redis
-docker run --name shipt-org-redis -p 6379:6379 -d redis
-```
-Update `.env.local` with local connection strings:
-```env
-POSTGRES_URL="postgresql://postgres:docker@localhost:5432/shipt_org"
-KV_URL="redis://localhost:6379"
-```
-
-### 4. Initialize Database
-Run the setup script to create tables:
-```bash
-# If using pnpm
-pnpm dlx tsx api/setup-db.ts
-
-# If using npm
-npx -y tsx api/setup-db.ts
-```
-
-### 5. Run Application
-```bash
-pnpm dev
-# App will run at http://localhost:5173
-```
-
-## 5. Environment Variables
-
-| Variable | Description | Example / Note |
-|----------|-------------|----------------|
-| `POSTGRES_URL` | Connection string for Postgres DB | Local: `postgresql://...`<br>Staging: Auto-set by Vercel Integration |
-| `KV_URL` | Connection string for Redis | Local: `redis://...`<br>Staging: Auto-set by Vercel Integration |
-| `RESEND_API_KEY` | API Key for [Resend](https://resend.com) (Email sending) | `re_12345...` |
-| `JWT_SECRET` | Secret key for signing Auth tokens | Generate: `openssl rand -base64 32` |
-| `ALLOWED_EMAILS` | Comma-separated list of allowed domains/emails | `user@shipt.com,admin@shipt.com` |
-| `VITE_APP_URL` | Base URL of the application | `http://localhost:5173` or Staging URL |
-
-**Note**: `POSTGRES_URL_*` and `KV_Rest_*` references in `.env.example` are specific to Vercel's managed services but standard connection strings work for the core libraries.
-
-## 6. Database & Migrations
-This project uses **Raw SQL** via `@vercel/postgres` for schema management. There is no ORM (Prisma/Drizzle) migration tool.
-
-**Migration Strategy**:
-- The schema is defined in `api/setup-db.ts`.
-- The script uses `CREATE TABLE IF NOT EXISTS`, making it idempotent (safe to run multiple times).
-
-**How to Apply Changes (Local & Staging):**
-1. Modify `api/setup-db.ts` with new columns/tables.
-2. Run the script against the target database environment.
-
-```bash
-# Apply to Local
-npx tsx api/setup-db.ts
-
-# Apply to Staging (Connect local script to staging DB)
-# 1. Pull staging env vars
-vercel env pull .env.staging
-# 2. Run script using staging env
-dotenv -e .env.staging -- npx tsx api/setup-db.ts
-```
-
-## 7. Staging Deployment (Vercel)
-
-### 1. Import Project
-1. Go to Vercel Dashboard -> **Add New...** -> **Project**.
-2. Select the `shipt-intranet-org-manager` repo.
-3. Framework Preset: **Vite**.
-
-### 2. Configure Resources
-1. **Storage**: In the storage tab, add **Vercel Postgres** and **Vercel KV** databases. This automatically populates `POSTGRES_*` and `KV_*` env vars.
-2. **Environment Variables**: Add the manual secrets:
-   - `RESEND_API_KEY`
-   - `JWT_SECRET`
-   - `ALLOWED_EMAILS` (e.g., `@shipt.com`)
-
-### 3. Deploy
-Click **Deploy**. Once finished, you will get a deployment URL (e.g., `https://shipt-org-manager-staging.vercel.app`).
-
-### 4. Initialize Staging DB
-Since the database is fresh, you must run the setup script.
-**Option A: Local Tunnel (Easiest)**
-On your local machine, link to the Vercel project and run the script:
-```bash
-npm install -g vercel
-vercel login
-vercel link
-vercel env pull .env.staging
-POSTGRES_URL=$(grep POSTGRES_URL .env.staging | cut -d= -f2-) npx tsx api/setup-db.ts
-```
-
-## 8. Shipt Intranet Considerations
-- **Access Control**: Ensure `ALLOWED_EMAILS` is strict (e.g., `*@shipt.com` only).
-- **Data Privacy**: Do NOT import real production HRIS dumps into Staging. Use mock data or anonymized datasets.
-- **SSO**: This app uses Magic Links. For stricter control, enable **Vercel Password Protection** on the deployment or put it behind Shipt VPN access if hosted differently.
-
-## 9. Operational Workflows
-- **Branching**: Use `main` for production-ready code. Use `feature/xyz` for development.
-- **Promotion**: Merging PR to `main` automatically deploys to Staging (if Vercel Git integration is active).
-- **Troubleshooting**:
-  - **Redirect Loop**: Check `ALLOWED_EMAILS` and ensure your email is valid.
-  - **"Relation does not exist"**: You forgot to run `api/setup-db.ts` against the database.
-  - **Connection Timeout**: Whitelist IP addresses if using corporate VPN/Firewall with external DBs (Vercel DB is public-accessible with creds).
-
-## 10. Verification Checklist
+## 8. Engineer Checklist
 - [ ] **Fork**: Repo exists in Shipt Org.
-- [ ] **Local Build**: `pnpm build` passes.
-- [ ] **Local DB**: `api/setup-db.ts` runs without error.
-- [ ] **Staging Deploy**: Vercel deployment is "Ready" (green).
-- [ ] **Auth**: You can log in with a Shipt email.
-- [ ] **CRUD**: Can create a new Module/Employee in Staging.
-- [ ] **Clean Slate**: (If implemented) "Reset Data" button works and re-seeds correctly.
+- [ ] **Email Replaced**: Updated `api/send-code.ts` to use internal SMTP.
+- [ ] **Server Adapter**: Created `server.js` to serve API/Frontend in Docker.
+- [ ] **Secrets**: Added keys to GCP Secret Manager.
+- [ ] **CI/CD**: Configuring Cloud Build to push to GCR.
