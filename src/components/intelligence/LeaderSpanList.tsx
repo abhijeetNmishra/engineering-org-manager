@@ -17,10 +17,8 @@ export function LeaderSpanList({ data, onLeaderClick }: LeaderSpanListProps) {
     const sortedData = [...data].sort((a, b) => b.directReports - a.directReports);
 
     return (
-        <div style={{ height: "100%", maxHeight: 400, overflowY: "auto", paddingRight: 8 }}>
-            <h4 style={{ marginBottom: 12, color: "var(--text-secondary)", position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1, paddingBottom: 8 }}>
-                Highest Load Leaders
-            </h4>
+        <div style={{ height: "100%", maxHeight: 400, overflowY: "auto", padding: "0 20px" }}>
+
             <List
                 itemLayout="horizontal"
                 dataSource={sortedData}
