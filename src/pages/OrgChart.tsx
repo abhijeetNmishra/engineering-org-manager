@@ -401,7 +401,11 @@ function OrgChartFlow() {
 
             {viewMode === 'tree' && <TreeView employees={state.employees} searchTerm={searchTerm} />}
 
-            {viewMode === 'teams' && <TeamView employees={state.employees} />}
+            {viewMode === 'teams' && (
+                <div style={{ height: '72vh', overflowY: 'auto', paddingRight: 4 }}>
+                    <TeamView employees={state.employees} />
+                </div>
+            )}
         </Card>
     );
 }
