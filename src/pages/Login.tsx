@@ -15,6 +15,7 @@ export function Login() {
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [expiresAt, setExpiresAt] = useState<number | null>(null);
+    const [useLongCode, setUseLongCode] = useState(false);
 
     const login = useAuthStore(state => state.login);
 
@@ -231,10 +232,41 @@ export function Login() {
                         </div>
 
                         <div style={{ margin: '24px 0' }}>
-                            <PasscodeInput
-                                onComplete={handleVerifyCode}
-                                loading={loading}
-                            />
+                            {useLongCode ? (
+                                <Input
+                                    size="large"
+                                    placeholder="Enter your magic code"
+                                    prefix={<LockOutlined style={{ color: 'var(--text-muted)' }} />}
+                                    onChange={(e) => {
+                                        if (e.target.value.length > 0) handleVerifyCode(e.target.value);
+                                    }}
+                                    onPressEnter={(e) => handleVerifyCode((e.target as HTMLInputElement).value)}
+                                    style={{
+                                        height: '52px',
+                                        borderRadius: '8px',
+                                        fontSize: '18px',
+                                        textAlign: 'center',
+                                        letterSpacing: '2px',
+                                        fontFamily: 'monospace'
+                                    }}
+                                />
+                            ) : (
+                                <PasscodeInput
+                                    onComplete={handleVerifyCode}
+                                    loading={loading}
+                                />
+                            )}
+                        </div>
+
+                        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                            <Button
+                                type="link"
+                                size="small"
+                                onClick={() => setUseLongCode(!useLongCode)}
+                                style={{ color: 'var(--text-muted)' }}
+                            >
+                                {useLongCode ? 'Switch to 6-digit input' : 'Have a longer magic code?'}
+                            </Button>
                         </div>
 
                         {countdown > 0 && (
