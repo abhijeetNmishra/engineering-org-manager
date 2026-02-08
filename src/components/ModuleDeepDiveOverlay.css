@@ -393,3 +393,37 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 }
+
+/* Selected Submodule State */
+.submodule-item.selected {
+    background: rgba(107, 33, 239, 0.1) !important;
+    border-color: rgba(107, 33, 239, 0.4) !important;
+}
+
+/* Tree Interactions */
+.tree-node.clickable {
+    cursor: pointer;
+}
+
+.tree-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    transition: color 0.2s;
+}
+
+.tree-caret:hover {
+    color: #1a1a2e;
+}
+
+@media (prefers-color-scheme: dark) {
+    .submodule-item.selected {
+        background: rgba(107, 33, 239, 0.2) !important;
+        border-color: rgba(107, 33, 239, 0.5) !important;
+    }
+
+    .tree-caret:hover {
+        color: #fff;
+    }
+}

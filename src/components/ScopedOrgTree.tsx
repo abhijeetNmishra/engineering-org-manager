@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Tag } from "antd";
+import { CaretRightOutlined, CaretDownOutlined } from "@ant-design/icons";
 import type { OrgTreeNode } from "../domain/moduleDeepDive";
 import "./ModuleDeepDiveOverlay.css";
 
@@ -8,14 +10,31 @@ interface ScopedOrgTreeProps {
 
 function TreeNode({ node, depth = 0 }: { node: OrgTreeNode; depth?: number }) {
     const { employee, children } = node;
+    const hasChildren = children.length > 0;
+
+    // Auto-expand if has reports (User request)
+    const [expanded, setExpanded] = useState(hasChildren);
 
     return (
         <div className="tree-node-container">
             <div
-                className="tree-node"
+                className={`tree-node ${hasChildren ? "clickable" : ""}`}
                 style={{ marginLeft: depth * 24 }}
+                onClick={(e) => {
+                    if (hasChildren) {
+                        e.stopPropagation();
+                        setExpanded(!expanded);
+                    }
+                }}
             >
                 <div className="tree-node-content">
+                    {/* Expand/Collapse Icon */}
+                    <span className="tree-caret" style={{ width: 20, display: 'inline-block', textAlign: 'center', marginRight: 4 }}>
+                        {hasChildren ? (
+                            expanded ? <CaretDownOutlined style={{ fontSize: 10 }} /> : <CaretRightOutlined style={{ fontSize: 10 }} />
+                        ) : <span />}
+                    </span>
+
                     <span className="tree-node-name">{employee.name}</span>
                     <span className="tree-node-title">{employee.title}</span>
                     <Tag
@@ -25,13 +44,15 @@ function TreeNode({ node, depth = 0 }: { node: OrgTreeNode; depth?: number }) {
                         {employee.primarySkill || "Unassigned"}
                     </Tag>
                 </div>
-                {children.length > 0 && (
+                {hasChildren && (
                     <span className="tree-node-count">
                         {children.length} report{children.length !== 1 ? "s" : ""}
                     </span>
                 )}
             </div>
-            {children.map(child => (
+
+            {/* Recursive Children */}
+            {expanded && children.map(child => (
                 <TreeNode key={child.employee.id} node={child} depth={depth + 1} />
             ))}
         </div>

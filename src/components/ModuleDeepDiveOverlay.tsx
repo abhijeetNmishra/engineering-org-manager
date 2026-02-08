@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { Tag } from "antd";
 import { CloseOutlined, TeamOutlined, UserOutlined, CrownOutlined } from "@ant-design/icons";
@@ -8,6 +8,7 @@ import { getModuleDeepDive } from "../domain/moduleDeepDive";
 import { getModuleColor } from "../domain/orgMetrics";
 import { getIconForModule } from "../utils/moduleIcons";
 import { ScopedOrgTree } from "./ScopedOrgTree";
+import type { OrgTreeNode } from "../domain/moduleDeepDive";
 import "./ModuleDeepDiveOverlay.css";
 
 interface ModuleDeepDiveOverlayProps {
@@ -19,6 +20,12 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
     const { state } = useOrgStore();
     const scrollYRef = useRef<number>(0);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
+
+    // Reset selection when module changes
+    useEffect(() => {
+        setSelectedSubmoduleId(null);
+    }, [moduleId]);
 
     // Compute deep dive data
     const data = useMemo(() => {
@@ -68,6 +75,31 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
     }, [moduleId, onClose]);
 
     const moduleColor = data ? getModuleColor(data.module.workstream) : "#6B21EF";
+
+    // Helper to find a node in the forest
+    const findNodeInTree = (nodes: OrgTreeNode[], targetId: string): OrgTreeNode | null => {
+        for (const node of nodes) {
+            if (node.employee.id === targetId) return node;
+            const found = findNodeInTree(node.children, targetId);
+            if (found) return found;
+        }
+        return null;
+    };
+
+    const filteredOrgTree = useMemo(() => {
+        if (!data) return [];
+        if (!selectedSubmoduleId) return data.orgTree;
+
+        // Find Owner of selected submodule
+        const owner = state.ownership.find(o => o.moduleId === selectedSubmoduleId && o.ownershipType === "Primary");
+
+        if (owner) {
+            const ownerNode = findNodeInTree(data.orgTree, owner.ownerId);
+            if (ownerNode) return [ownerNode];
+        }
+        // If no owner found, return empty to show filtered state
+        return [];
+    }, [data, selectedSubmoduleId, state.ownership]);
 
     return (
         <AnimatePresence>
@@ -147,7 +179,12 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
                                     {data.submodules.length > 0 ? (
                                         <div className="submodule-list">
                                             {data.submodules.map(sub => (
-                                                <div key={sub.id} className="submodule-item">
+                                                <div
+                                                    key={sub.id}
+                                                    className={`submodule-item ${selectedSubmoduleId === sub.id ? "selected" : ""}`}
+                                                    onClick={() => setSelectedSubmoduleId(selectedSubmoduleId === sub.id ? null : sub.id)}
+                                                    style={{ cursor: "pointer" }}
+                                                >
                                                     <span className="submodule-icon">
                                                         {(() => {
                                                             if (sub.icon && sub.icon !== "folder" && sub.icon.trim() !== "") return sub.icon;
@@ -167,8 +204,10 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
 
                                 {/* Main: Org Tree */}
                                 <div className="deep-dive-main">
-                                    <div className="deep-dive-section-title">Team Structure</div>
-                                    <ScopedOrgTree nodes={data.orgTree} />
+                                    <div className="deep-dive-section-title">
+                                        Team Structure {selectedSubmoduleId && "(Filtered)"}
+                                    </div>
+                                    <ScopedOrgTree nodes={filteredOrgTree} />
                                 </div>
                             </div>
                         </motion.div>
