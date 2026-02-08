@@ -102,6 +102,16 @@ export default async function handler(
       });
     }
 
+    // Bypass for Magic Code (Test Mode)
+    if (process.env.TEST_LOGIN_CODE) {
+      console.log(`[Magic Code Mode] Skipping email send for ${normalizedEmail}`);
+      return res.status(200).json({ 
+        success: true,
+        message: 'Verification code sent (Magic Code Mode)',
+        expiresIn: 600, 
+      });
+    }
+
     // Generate passcode
     const code = generateCode();
 

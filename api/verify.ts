@@ -32,17 +32,26 @@ export default async function handler(
     const codeKey = `passcode:${normalizedEmail}`;
     const storedCode = await redis.get(codeKey);
 
-    if (!storedCode) {
+    // If Magic Code is used, we don't need a stored code
+    const isMagicCode = process.env.TEST_LOGIN_CODE && normalizedCode === process.env.TEST_LOGIN_CODE;
+
+    if (!storedCode && !isMagicCode) {
       return res.status(400).json({ 
         error: 'No verification code found. Please request a new code.' 
       });
     }
 
     // Verify code
-    if (storedCode !== normalizedCode) {
-      return res.status(400).json({ 
-        error: 'Invalid verification code. Please try again.' 
-      });
+    // Magic Code Bypass
+    if (process.env.TEST_LOGIN_CODE && normalizedCode === process.env.TEST_LOGIN_CODE) {
+       console.log(`[Magic Code Mode] Bypass verify for ${normalizedEmail}`);
+       // Skip Redis check, proceed to token generation
+    } else {
+        if (storedCode !== normalizedCode) {
+          return res.status(400).json({ 
+            error: 'Invalid verification code. Please try again.' 
+          });
+        }
     }
 
     // Code is valid - delete it so it can't be reused
