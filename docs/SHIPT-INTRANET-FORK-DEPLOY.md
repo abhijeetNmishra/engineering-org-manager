@@ -128,7 +128,14 @@ Tasks like table creation should be run as a **Job** or strictly controlled proc
 POSTGRES_URL="<CLOUD_SQL_URL>" npx tsx api/setup-db.ts
 ```
 
-## 8. Engineer Checklist
+## 9. Troubleshooting
+- **Email Not Delivering (Resend)**:
+  - **Issue**: Emails only arrive at the account owner's address.
+  - **Cause**: Resend Sandbox Mode restricts recipients to the verified account email only.
+  - **Fix (External)**: Verify a domain in Resend dashboard.
+  - **Fix (Internal)**: Switch to internal SMTP (see Section 5).
+
+## 10. Engineer Checklist
 - [ ] **Fork**: Repo exists in Shipt Org.
 - [ ] **Email Replaced**: Updated `api/send-code.ts` to use internal SMTP.
 - [ ] **Server Adapter**: Created `server.js` to serve API/Frontend in Docker.
