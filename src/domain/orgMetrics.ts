@@ -552,6 +552,8 @@ export const SKILL_COLORS: Record<string, string> = {
   "Python": "#34D399", 
   "Java": "#059669",
   "Ruby": "#D946EF", // Fuchsia
+  "Backend": "#10B981",
+  "Backend - Search": "#059669",
   
   // Frontend
   "React": "#3B82F6", // Blue
@@ -560,40 +562,56 @@ export const SKILL_COLORS: Record<string, string> = {
   "Mobile": "#F59E0B", // Amber
   "iOS": "#FBBF24",
   "Android": "#F59E0B",
+  "Frontend - Web": "#3B82F6",
+  "Frontend - App": "#60A5FA",
+  "Frontend - All": "#2563EB",
 
-  // Data
+  // Data / AI
   "Data Science": "#8B5CF6", // Violet
   "Machine Learning": "#7C3AED",
+  "ML Engineering": "#8B5CF6",
   "SQL": "#A78BFA",
 
-  // Product/Design
+  // Product/Design/Leadership
   "Product": "#EC4899", // Pink
   "Design": "#F472B6",
+  "Leadership": "#7C3AED",
   
   // Default for others
   "Unknown": "#9CA3AF"
 };
 
 export const ROLE_COLORS: Record<string, string> = {
-  // Leadership
-  "VP": "#7C3AED", // Deep Violet
-  "Director": "#8B5CF6",
+  // Executive / Leadership
+  "VP Of Engineering": "#7C3AED", // Deep Violet
+  "Director Of Engineering": "#8B5CF6",
   "Senior Engineering Manager": "#EC4899", // Pink
   "Engineering Manager": "#F472B6",
-
-  // IC Tracks
+  
+  // Technical Leadership (IC)
+  "Senior Principal Engineer - Frontend": "#D97706", // Deep Amber
+  "Senior Principal Engineer - Backend + AI": "#D97706",
   "Principal Engineer": "#F59E0B", // Amber (Gold)
   "Staff Engineer": "#FBBF24",
+  "Staff Machine Learning Engineer": "#FBBF24",
+
+  // Senior ICs
   "Senior Engineer": "#10B981", // Emerald
+  "Senior Machine Learning Engineer": "#10B981",
+  
+  // ICs
   "Engineer": "#34D399",
+  "Machine Learning Engineer": "#34D399",
   "Associate Engineer": "#6EE7B7",
   "Associate": "#6EE7B7",
   
-  "Unknown": "#9CA3AF"
+  // Contractors / Other
+  "Contractor": "#9CA3AF", // Gray
+
+  "Unknown": "#6B7280"
 };
 
 export function getSkillColor(skill: string): string {
-  // Simple check or partial match? For now direct lookup
   return SKILL_COLORS[skill] || "#9CA3AF";
 }
 
