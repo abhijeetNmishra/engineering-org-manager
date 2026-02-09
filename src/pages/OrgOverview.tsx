@@ -6,6 +6,7 @@ import { useOrgStore } from "../state/orgStore";
 import { computeOrgStats, computeModuleSummaries, getModuleColor } from "../domain/orgMetrics";
 import { ModuleDeepDiveOverlay } from "../components/ModuleDeepDiveOverlay";
 import type { ModuleSummary } from "../domain/types";
+import { WorkstreamHeroSlider } from "../components/WorkstreamHeroSlider";
 import "./OrgOverview.css";
 
 // Animation variants for cards
@@ -139,6 +140,9 @@ export function OrgOverview() {
 
     return (
         <div className="org-overview">
+            {/* Hero Slider */}
+            <WorkstreamHeroSlider />
+
             {/* Hero Section */}
             <motion.div
                 className="org-overview-hero"

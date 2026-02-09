@@ -23,11 +23,27 @@
     font-size: 42px;
     font-weight: 800;
     margin: 0;
+    margin: 0;
     background: linear-gradient(135deg, #6B21EF 0%, #FF6D5A 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     letter-spacing: -1px;
+}
+
+.hero-gradient-text-dark {
+    background: linear-gradient(90deg, #fff 0%, rgba(255, 255, 255, 0.8) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+}
+
+.hero-gradient-text-light {
+    background: linear-gradient(90deg, #111827 0%, #374151 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .hero-subtitle {
