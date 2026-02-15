@@ -134,6 +134,25 @@ function reducer(state: ShiptOrgState, action: Action): ShiptOrgState {
 function migrateState(state: any): ShiptOrgState {
     if (!state || !state.employees) return state;
 
+    // Migration: Backfill icons and workstream for modules
+    // DO THIS FIRST so we can use correct module data to fix employees
+    const modules = (state.modules || []).map((m: any) => {
+        // Backfill workstream if missing
+        // For top-level modules, workstream is the name
+        // For submodules, we might not know easily without parent lookup, but orgMetrics only uses top-level for this specific breakdown
+        // So this covers the "Modules Overview" issue.
+        if (!m.workstream && !m.parentId) {
+            m.workstream = m.name.trim();
+        }
+
+        if (!m.icon) {
+            return m;
+        }
+        return m;
+    });
+
+    const modulesMap = new Map(modules.map((m: ModuleNode) => [m.id, m]));
+
     const employees = state.employees.map((e: any) => {
         let updated = { ...e };
 
@@ -141,6 +160,19 @@ function migrateState(state: any): ShiptOrgState {
         if (Array.isArray(updated.workstreams)) {
             updated.workstream = updated.workstreams[0] || "Unassigned";
             delete updated.workstreams;
+        }
+
+        // Migration: Fix "Unassigned" workstream by looking up ownership
+        // If employee is unassigned but owns a module, use that module's workstream
+        if ((!updated.workstream || updated.workstream === "Unassigned") && updated.moduleOwnershipIds?.length > 0) {
+            for (const modId of updated.moduleOwnershipIds) {
+                const mod = modulesMap.get(modId) as any;
+                // We need to cast because moduleOwnershipIds is string[] but Map key is string
+                if (mod && mod.workstream) {
+                    updated.workstream = mod.workstream;
+                    break; // Found one, stop
+                }
+            }
         }
 
         // Migration: primarySkills[] -> primarySkill + secondarySkills[]
@@ -158,22 +190,6 @@ function migrateState(state: any): ShiptOrgState {
             };
         }
         return updated;
-    });
-
-    // Migration: Backfill icons and workstream for modules
-    const modules = (state.modules || []).map((m: any) => {
-        // Backfill workstream if missing
-        // For top-level modules, workstream is the name
-        // For submodules, we might not know easily without parent lookup, but orgMetrics only uses top-level for this specific breakdown
-        // So this covers the "Modules Overview" issue.
-        if (!m.workstream && !m.parentId) {
-            m.workstream = m.name.trim();
-        }
-
-        if (!m.icon) {
-            return m;
-        }
-        return m;
     });
 
     return { ...state, employees, modules };
