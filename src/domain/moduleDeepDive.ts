@@ -93,60 +93,29 @@ export interface SubmoduleFilterResult {
 }
 
 /**
- * Get employees for a specific submodule, with workstream fallback.
+ * Get employees for a specific submodule using strict filtering.
  * 
  * Strategy:
- * 1. Check if ANY ownership data exists for submodules in this workstream.
- * 2. If yes → strict filter: only employees explicitly mapped to the selected submodule.
- * 3. If no → fallback: return ALL workstream members (since we can't differentiate).
+ * - Return ONLY employees explicitly mapped to this submodule.
+ * - No fallback to workstream members.
+ * - Uses `ownership` table and `moduleOwnershipIds` as source of truth.
  */
 export function getSubmoduleEmployees(
     state: ShiptOrgState,
     submoduleId: string,
     workstreamPeople: Employee[]
 ): SubmoduleFilterResult {
-    const { modules, ownership } = state;
-
-    // Find the submodule and its parent workstream
-    const submodule = modules.find(m => m.id === submoduleId);
-    if (!submodule) {
-        return { matchedIds: new Set(), hasMappingData: false };
-    }
-
-    // Get all sibling submodule IDs (same parent workstream)
-    const parentId = submodule.parentId;
-    const siblingSubmoduleIds = new Set(
-        modules.filter(m => m.parentId === parentId).map(m => m.id)
-    );
-
-    // Check if ANY ownership records exist for ANY submodule in this workstream
-    const hasOwnershipRecords = ownership.some(o => siblingSubmoduleIds.has(o.moduleId));
-    
-    // Also check if any employee has moduleOwnershipIds pointing to sibling submodules
-    const hasEmployeeMapping = workstreamPeople.some(p => {
-        const ids = Array.isArray(p.moduleOwnershipIds) ? p.moduleOwnershipIds : [];
-        return ids.some(id => siblingSubmoduleIds.has(id));
-    });
-
-    const hasMappingData = hasOwnershipRecords || hasEmployeeMapping;
-
-    if (!hasMappingData) {
-        // No mapping data exists → fall back to all workstream members
-        return {
-            matchedIds: new Set(workstreamPeople.map(p => p.id)),
-            hasMappingData: false,
-        };
-    }
+    const { ownership } = state;
 
     // Strict filtering: find employees explicitly mapped to THIS submodule
     const matchedIds = new Set<string>();
 
-    // Source A: Ownership table
+    // Source A: Ownership table (Global SOT)
     ownership
         .filter(o => o.moduleId === submoduleId)
         .forEach(o => matchedIds.add(o.ownerId));
 
-    // Source B: Employee's own module list
+    // Source B: Employee's own module list (Local SOT - for completeness)
     workstreamPeople.forEach(p => {
         const ids = Array.isArray(p.moduleOwnershipIds) ? p.moduleOwnershipIds : [];
         if (ids.includes(submoduleId)) {
@@ -154,7 +123,9 @@ export function getSubmoduleEmployees(
         }
     });
 
-    return { matchedIds, hasMappingData: true };
+    const hasMappingData = matchedIds.size > 0;
+
+    return { matchedIds, hasMappingData };
 }
 
 /**

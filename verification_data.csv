@@ -1,0 +1,7 @@
+Full Name,Email,Role,Primary Skill,Workstream,Submodules,Status,Reports To,Location,Tenure,Secondary Skills,Notes
+Alice Director,alice@test.com,Director,Management,Engineering,"Platform, Architecture",Active,,US,2,,
+Bob Principal,bob@test.com,Principal Engineer,Java,Engineering,"Platform, Architecture",Active,alice@test.com,US,4,,
+Carol Staff,carol@test.com,Staff Engineer,Go,Engineering,"Platform, Architecture",Active,alice@test.com,US,3,,
+Dave Dev,dave@test.com,Senior Engineer,React,Engineering,Platform,Active,carol@test.com,US,2,,
+Eve Dev,eve@test.com,Senior Engineer,Node,Engineering,"Platform, Mobile",Active,carol@test.com,US,2,,Strict Rule Test
+Frank Dev,frank@test.com,Engineer II,Python,Engineering,,Active,dave@test.com,US,1,,No Submodules

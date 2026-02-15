@@ -4,26 +4,13 @@ import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, WarningOutlined }
 import type { UploadProps } from "antd";
 import Papa from "papaparse";
 import { useOrgStore } from "../state/orgStore";
-import type { ShiptOrgState, Employee, ModuleNode, EmployeeStatus, Ownership } from "../domain/types";
+import { processEmployeeRows, type BulkUploadRow } from "../utils/csvProcessor";
 
 const { Dragger } = Upload;
 const { Title, Paragraph, Text } = Typography;
 
-interface BulkUploadRow {
-    "Full Name": string;
-    "Email": string;
-    "Role": string;
-    "Primary Skill": string;
-    "Workstream": string;
-    "Status"?: string;
-    "Reports To"?: string;
-    "Location"?: string;
-    "Tenure"?: string;
-    "Secondary Skills"?: string;
-    "Submodules"?: string;
-    "Notes"?: string;
-}
 
+// Fixed syntax error
 export function BulkPeopleUpload() {
     const { state, dispatch } = useOrgStore();
     const [processing, setProcessing] = useState(false);
@@ -70,11 +57,7 @@ export function BulkPeopleUpload() {
     };
 
     const processRows = (rows: BulkUploadRow[]) => {
-        let updatedCount = 0;
-        let createdCount = 0;
-        const newLogs: typeof logs = [];
-
-        // 1. Validation (Fail fast for schema)
+        // Validation (Fail fast for schema)
         if (rows.length === 0) {
             setLogs([{ type: "error", message: "File is empty" }]);
             setProcessing(false);
@@ -91,208 +74,16 @@ export function BulkPeopleUpload() {
             return;
         }
 
-        // Clone state for mutation
-        const nextEmployees = [...state.employees];
-        const nextModules = [...state.modules];
-        const emailToIdMap = new Map<string, string>();
+        // Delegate to pure function
+        const result = processEmployeeRows(rows, state);
 
-        // Build email map from existing
-        nextEmployees.forEach(e => {
-            if (e.email) emailToIdMap.set(e.email.toLowerCase(), e.id);
-        });
-
-        // 2. Process Structure (Workstreams & Submodules)
-        const workstreamMap = new Map<string, string>(); // Name -> ID
-
-        // Index existing modules (workstreams = top-level modules without parentId)
-        nextModules.forEach(m => {
-            if (!m.parentId) {
-                workstreamMap.set(m.name, m.id);
-            }
-        });
-
-        rows.forEach((row) => {
-            // Normalize inputs
-            const workstreamName = row["Workstream"]?.trim();
-            const submodulesStr = row["Submodules"]?.trim();
-
-            if (!workstreamName) return;
-
-            // Ensure Workstream Module Exists
-            if (!workstreamMap.has(workstreamName)) {
-                const newId = `ws-${workstreamName.toLowerCase().replace(/\s+/g, '-')}`;
-                const newModule: ModuleNode = {
-                    id: newId,
-                    name: workstreamName,
-                    workstream: workstreamName, // It defines itself
-                    type: "Vertical", // Default to Vertical
-                    tags: ["Imported"],
-                    icon: "folder" // Default icon
-                };
-                nextModules.push(newModule);
-                workstreamMap.set(workstreamName, newId);
-                newLogs.push({ type: "success", message: `Created new Workstream: ${workstreamName}` });
-            }
-
-            const workstreamId = workstreamMap.get(workstreamName)!;
-
-            // Ensure Submodules Exist
-            if (submodulesStr) {
-                const subs = submodulesStr.split(",").map(s => s.trim()).filter(Boolean);
-                subs.forEach(subName => {
-                    // Check if exists under this parent
-                    const exists = nextModules.some(m => m.name === subName && m.parentId === workstreamId);
-                    if (!exists) {
-                        const subId = `mod-${subName.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substr(2, 4)}`;
-                        nextModules.push({
-                            id: subId,
-                            name: subName,
-                            workstream: workstreamName,
-                            parentId: workstreamId,
-                            type: "Vertical", // Inherit
-                            tags: ["Imported"]
-                        });
-                    }
-                });
-            }
-        });
-
-        setProgress(50);
-
-        // 3. Process People Upsert & ID Resolution
-        const upsertMap = new Map<string, Employee>(); // Email -> Employee Object
-        const emailToManagerEmail = new Map<string, string>(); // Email -> Manager Email
-        const newOwnership: Ownership[] = [...(state.ownership || [])];
-
-        rows.forEach(row => {
-            const email = row["Email"]?.trim().toLowerCase();
-            if (!email) return;
-
-            const existingId = emailToIdMap.get(email);
-            const id = existingId || `emp-${Math.random().toString(36).substr(2, 9)}`;
-
-            // Map the intent
-            if (row["Reports To"]) {
-                emailToManagerEmail.set(email, row["Reports To"].trim().toLowerCase());
-            }
-
-            // Find existing object to preserve fields
-            const existingEmp = nextEmployees.find(e => e.id === existingId);
-
-            // Default baseline if new
-            const baseEmp: Partial<Employee> = existingEmp || {
-                id,
-                moduleOwnershipIds: [],
-                workstreams: [],
-                secondarySkills: []
-            };
-
-            const statusRaw = row["Status"]?.toLowerCase();
-            let status: EmployeeStatus = "active";
-            if (statusRaw === "open") status = "open";
-            else if (statusRaw?.includes("leave")) status = "on_leave";
-
-            const name = row["Full Name"]?.trim() || baseEmp.name || "Unknown";
-            const title = row["Role"]?.trim() || baseEmp.title || "Contributor";
-            const primarySkill = row["Primary Skill"]?.trim() || baseEmp.primarySkill || "Generalist";
-            const location = (row["Location"]?.trim() as any) || baseEmp.location || "US";
-            const tenure = row["Tenure"] ? parseInt(row["Tenure"]) : baseEmp.tenure || 0;
-            const secondarySkills = row["Secondary Skills"]?.split(",").map(s => s.trim()).filter(Boolean) || baseEmp.secondarySkills || [];
-            const notes = row["Notes"]?.trim() || baseEmp.notes;
-            const workstreams = row["Workstream"] ? [row["Workstream"].trim()] : (baseEmp.workstreams || []);
-
-            // Resolve submodule names -> IDs for this employee
-            const submodulesStr = row["Submodules"]?.trim();
-            const workstreamName = row["Workstream"]?.trim();
-            const workstreamId = workstreamName ? workstreamMap.get(workstreamName) : undefined;
-            let resolvedSubmoduleIds: string[] = baseEmp.moduleOwnershipIds || [];
-
-            if (submodulesStr && workstreamId) {
-                const subNames = submodulesStr.split(",").map(s => s.trim()).filter(Boolean);
-                resolvedSubmoduleIds = subNames
-                    .map(subName => {
-                        const mod = nextModules.find(m => m.name === subName && m.parentId === workstreamId);
-                        return mod?.id;
-                    })
-                    .filter((id): id is string => !!id);
-
-                // Create ownership records for this employee -> submodule
-                resolvedSubmoduleIds.forEach(modId => {
-                    const alreadyExists = newOwnership.some(o => o.moduleId === modId && o.ownerId === id);
-                    if (!alreadyExists) {
-                        newOwnership.push({ moduleId: modId, ownerId: id, ownershipType: "Contributor" });
-                    }
-                });
-            }
-
-            const newEmp: Employee = {
-                id,
-                moduleOwnershipIds: resolvedSubmoduleIds,
-                managerId: baseEmp.managerId, // Will be updated in validation pass
-                email: row["Email"]?.trim(), // Keep original case
-                name,
-                title,
-                primarySkill,
-                location,
-                status,
-                tenure,
-                secondarySkills,
-                notes,
-                workstreams
-            };
-
-            if (existingId) updatedCount++;
-            else createdCount++;
-
-            upsertMap.set(email, newEmp);
-
-            // Also update the global ID map so subsequent rows (reports) can find this person
-            emailToIdMap.set(email, id);
-        });
-
-        // 4. Resolve Managers
-        upsertMap.forEach((emp, email) => {
-            const managerEmail = emailToManagerEmail.get(email);
-            if (managerEmail) {
-                const managerId = emailToIdMap.get(managerEmail);
-                if (managerId) {
-                    emp.managerId = managerId;
-                } else {
-                    newLogs.push({ type: "warning", message: `Could not find manager with email: ${managerEmail} for ${emp.name}` });
-                }
-            }
-        });
-
-        // 5. Commit to State
-        // Remove old versions of upserted people from nextEmployees
-        const finalEmployees = nextEmployees.filter(e => {
-            const email = e.email?.toLowerCase();
-            return !email || !upsertMap.has(email);
-        });
-
-        // Add all from upsertMap
-        upsertMap.forEach(emp => finalEmployees.push(emp));
-
-        // Log ownership mapping summary
-        const existingOwnershipCount = state.ownership?.length || 0;
-        const newMappingsCount = newOwnership.length - existingOwnershipCount;
-        if (newMappingsCount > 0) {
-            newLogs.push({ type: "success", message: `Created ${newMappingsCount} submodule ownership mapping(s) from the Submodules column.` });
-        }
-
-        const newState: ShiptOrgState = {
-            ...state,
-            employees: finalEmployees,
-            modules: nextModules,
-            ownership: newOwnership
-        };
-
-        dispatch({ type: "IMPORT_STATE", payload: newState });
+        dispatch({ type: "IMPORT_STATE", payload: result.newState });
 
         setProgress(100);
         setProcessing(false);
-        newLogs.unshift({ type: "success", message: `Complete! Created: ${createdCount}, Updated: ${updatedCount}` });
-        setLogs(newLogs);
+
+        const summaryLog = { type: "success" as const, message: `Complete! Created: ${result.createdCount}, Updated: ${result.updatedCount}` };
+        setLogs([summaryLog, ...result.logs]);
     };
 
     const uploadProps: UploadProps = {

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { Tag, Select } from "antd";
-import { CloseOutlined, TeamOutlined, UserOutlined, CrownOutlined, AppstoreOutlined, PlusOutlined } from "@ant-design/icons";
+import { Tag } from "antd";
+import { CloseOutlined, TeamOutlined, UserOutlined, CrownOutlined, AppstoreOutlined } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrgStore } from "../state/orgStore";
 import { getModuleDeepDive, getSubmoduleEmployees } from "../domain/moduleDeepDive";
@@ -17,7 +17,7 @@ interface ModuleDeepDiveOverlayProps {
 }
 
 export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverlayProps) {
-    const { state, dispatch } = useOrgStore();
+    const { state } = useOrgStore();
     const scrollYRef = useRef<number>(0);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
     const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
@@ -98,64 +98,19 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
             .filter((n): n is OrgTreeNode => n !== null);
     };
 
-    const { filteredOrgTree, hasMappingData } = useMemo(() => {
-        if (!data) return { filteredOrgTree: [], hasMappingData: true };
-        if (!selectedSubmoduleId) return { filteredOrgTree: data.orgTree, hasMappingData: true };
+    const { filteredOrgTree } = useMemo(() => {
+        if (!data) return { filteredOrgTree: [] };
+        if (!selectedSubmoduleId) return { filteredOrgTree: data.orgTree };
 
         const result = getSubmoduleEmployees(state, selectedSubmoduleId, data.people);
 
         if (result.matchedIds.size === 0) {
-            return { filteredOrgTree: [], hasMappingData: result.hasMappingData };
+            return { filteredOrgTree: [] };
         }
 
         const pruned = pruneTree(data.orgTree, result.matchedIds);
-        return { filteredOrgTree: pruned, hasMappingData: result.hasMappingData };
+        return { filteredOrgTree: pruned };
     }, [data, selectedSubmoduleId, state]);
-
-    // Quick-assign handler: assigns people to the selected submodule
-    const handleQuickAssign = useCallback((employeeIds: string[]) => {
-        if (!selectedSubmoduleId) return;
-
-        // Get currently assigned IDs for this submodule
-        const currentIds = new Set(
-            state.ownership
-                .filter(o => o.moduleId === selectedSubmoduleId)
-                .map(o => o.ownerId)
-        );
-
-        // Add new assignments
-        employeeIds.forEach(empId => {
-            if (!currentIds.has(empId)) {
-                dispatch({
-                    type: "UPSERT_OWNERSHIP",
-                    moduleId: selectedSubmoduleId,
-                    ownerId: empId,
-                    ownershipType: "Contributor"
-                });
-            }
-        });
-
-        // Remove deselected assignments
-        currentIds.forEach(empId => {
-            if (!employeeIds.includes(empId)) {
-                dispatch({ type: "REMOVE_OWNERSHIP", moduleId: selectedSubmoduleId, ownerId: empId });
-            }
-        });
-    }, [selectedSubmoduleId, state.ownership, dispatch]);
-
-    // Options for the quick-assign select
-    const quickAssignOptions = useMemo(() => {
-        if (!data) return [];
-        return data.people.map(p => ({ label: `${p.name} (${p.title})`, value: p.id }));
-    }, [data]);
-
-    // Currently assigned employee IDs for the selected submodule
-    const currentAssignedIds = useMemo(() => {
-        if (!selectedSubmoduleId) return [];
-        return state.ownership
-            .filter(o => o.moduleId === selectedSubmoduleId)
-            .map(o => o.ownerId);
-    }, [selectedSubmoduleId, state.ownership]);
 
     return (
         <AnimatePresence>
@@ -275,37 +230,6 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
                                     <div className="deep-dive-section-title">
                                         Team Structure {selectedSubmoduleId && "(Filtered)"}
                                     </div>
-                                    {/* Quick Assign UI when no mapping data exists */}
-                                    {!hasMappingData && selectedSubmoduleId && (
-                                        <div style={{
-                                            padding: '14px 16px',
-                                            marginBottom: 16,
-                                            borderRadius: 10,
-                                            background: 'rgba(107, 33, 239, 0.06)',
-                                            border: '1px solid rgba(107, 33, 239, 0.15)',
-                                            color: 'var(--text-secondary)',
-                                            fontSize: 13,
-                                        }}>
-                                            <div style={{ marginBottom: 8, fontWeight: 600, color: 'var(--text-primary)' }}>
-                                                <PlusOutlined style={{ marginRight: 6 }} />
-                                                Assign team members to this submodule
-                                            </div>
-                                            <div style={{ marginBottom: 10, lineHeight: 1.5 }}>
-                                                Select the people who work on this submodule to enable filtering.
-                                            </div>
-                                            <Select
-                                                mode="multiple"
-                                                placeholder="Search and select team members..."
-                                                style={{ width: '100%' }}
-                                                options={quickAssignOptions}
-                                                value={currentAssignedIds}
-                                                onChange={handleQuickAssign}
-                                                optionFilterProp="label"
-                                                maxTagCount={5}
-                                                maxTagTextLength={20}
-                                            />
-                                        </div>
-                                    )}
 
                                     {filteredOrgTree.length > 0 ? (
                                         <ScopedOrgTree nodes={filteredOrgTree} />
@@ -319,7 +243,10 @@ export function ModuleDeepDiveOverlay({ moduleId, onClose }: ModuleDeepDiveOverl
                                             marginTop: 20
                                         }}>
                                             <TeamOutlined style={{ fontSize: 24, marginBottom: 8, opacity: 0.5 }} />
-                                            <p>No team members mapped to this submodule yet. Use the selector above to assign people.</p>
+                                            <p>No active team members assigned to this submodule.</p>
+                                            <p style={{ fontSize: '0.85em', opacity: 0.7, marginTop: 4 }}>
+                                                Check your CSV import to ensure employees are mapped to "{data.submodules.find(s => s.id === selectedSubmoduleId)?.name}".
+                                            </p>
                                         </div>
                                     )}
                                 </div>
