@@ -129,7 +129,7 @@ export function computeWorkstreamCoverage(state: ShiptOrgState): WorkstreamCover
     const ownedModules = modules.filter((m) => ownedSet.has(m.id)).length;
     const unownedModules = moduleCount - ownedModules;
 
-    const people = state.employees.filter((e) => e.workstreams.includes(ws)).length;
+    const people = state.employees.filter((e) => e.workstream === ws).length;
 
     const peoplePerModule = moduleCount === 0 ? 0 : Number((people / moduleCount).toFixed(2));
 
@@ -302,7 +302,7 @@ export function computeLeaderMetrics(
   });
   
   // Find all workstreams touched by this leader's team
-  const workstreamsTouched = [...new Set(directReports.flatMap(e => e.workstreams || []))];
+  const workstreamsTouched = [...new Set(directReports.map(e => e.workstream || "Unassigned"))];
   
   return {
     employeeId,
@@ -332,7 +332,7 @@ export function computeModuleSummaries(state: ShiptOrgState): ModuleSummary[] {
     
     // Find employees assigned to this workstream
     const moduleEmployees = employees.filter(e => 
-      e.workstreams?.includes(mod.workstream)
+      e.workstream === mod.workstream
     );
     
     // Count ICs vs Leaders

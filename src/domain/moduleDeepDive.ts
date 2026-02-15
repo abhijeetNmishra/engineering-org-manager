@@ -41,7 +41,7 @@ export function getModuleDeepDive(
     // Find employees in this workstream OR mapped to its submodules
     const people = employees.filter(e => {
         // 1. Explicit workstream tag
-        if (e.workstreams?.includes(module.workstream)) return true;
+        if (e.workstream === module.workstream) return true;
 
         // 2. Mapped to a submodule via ownership list (on employee object)
         if (e.moduleOwnershipIds?.some(id => submoduleIds.has(id))) return true;

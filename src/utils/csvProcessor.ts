@@ -120,7 +120,7 @@ export function processEmployeeRows(
         const baseEmp: Partial<Employee> = existingEmp || {
             id,
             moduleOwnershipIds: [],
-            workstreams: [],
+            workstream: "Unassigned", // Default
             secondarySkills: []
         };
 
@@ -136,7 +136,7 @@ export function processEmployeeRows(
         const tenure = row["Tenure"] ? parseInt(row["Tenure"]) : baseEmp.tenure || 0;
         const secondarySkills = row["Secondary Skills"]?.split(",").map(s => s.trim()).filter(Boolean) || baseEmp.secondarySkills || [];
         const notes = row["Notes"]?.trim() || baseEmp.notes;
-        const workstreams = row["Workstream"] ? [row["Workstream"].trim()] : (baseEmp.workstreams || []);
+        const workstream = row["Workstream"] ? row["Workstream"].trim() : (baseEmp.workstream || "Unassigned");
 
         // Resolve submodule names -> IDs using strict hierarchy
         const submodulesStr = row["Submodules"]?.trim();
@@ -203,7 +203,7 @@ export function processEmployeeRows(
             tenure,
             secondarySkills,
             notes,
-            workstreams
+            workstream // Updated to single string
         };
 
         if (existingId) updatedCount++;

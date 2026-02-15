@@ -45,7 +45,7 @@ export interface Employee {
   title: RoleLevel;
   location: LocationTag;
   managerId?: string; // reporting line
-  workstreams: WorkstreamKey[]; // vertical/horizontal alignment
+  workstream: WorkstreamKey; // vertical/horizontal alignment (SINGLE)
   moduleOwnershipIds: string[]; // modules they own / co-own
   notes?: string;
   

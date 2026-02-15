@@ -213,22 +213,21 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 </div>
 
                 <Form.Item
-                    name="workstreams"
-                    label="Workstreams"
-                    rules={[{ required: true, message: 'Please select at least one workstream' }]}
+                    name="workstream"
+                    label="Workstream"
+                    rules={[{ required: true, message: 'Please select a workstream' }]}
                 >
                     <Select
-                        mode="multiple"
-                        placeholder="Select workstreams"
+                        placeholder="Select workstream"
                         options={state.modules
                             .filter(m => !m.parentId) // Only Root Modules are Workstreams
                             .map(m => ({ label: m.name, value: m.name })) // Use Name as key based on current data model
                         }
-                        onChange={(selectedWorkstreams: string[]) => {
-                            // Reset submodules that don't belong to selected workstreams
+                        onChange={(selectedWorkstream: string) => {
+                            // Reset submodules that don't belong to selected workstream
                             const currentSubmodules = form.getFieldValue('moduleOwnershipIds') || [];
                             const validSubmodules = state.modules
-                                .filter(m => m.parentId && selectedWorkstreams.includes(m.workstream))
+                                .filter(m => m.parentId && m.workstream === selectedWorkstream)
                                 .map(m => m.id);
 
                             const newSubmodules = currentSubmodules.filter((id: string) => validSubmodules.includes(id));
@@ -238,14 +237,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 </Form.Item>
 
                 <Form.Item
-                    shouldUpdate={(prev, curr) => prev.workstreams !== curr.workstreams}
+                    shouldUpdate={(prev, curr) => prev.workstream !== curr.workstream}
                 >
                     {({ getFieldValue }) => {
-                        const selectedWorkstreams = getFieldValue('workstreams') || [];
-                        const isEnabled = selectedWorkstreams.length > 0;
+                        const selectedWorkstream = getFieldValue('workstream');
+                        const isEnabled = !!selectedWorkstream;
 
                         const availableSubmodules = state.modules
-                            .filter(m => m.parentId && selectedWorkstreams.includes(m.workstream))
+                            .filter(m => m.parentId && m.workstream === selectedWorkstream)
                             .map(m => ({
                                 label: `${m.name} (${m.workstream})`,
                                 value: m.id

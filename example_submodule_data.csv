@@ -1,0 +1,10 @@
+Full Name,Email,Role,Primary Skill,Workstream,Status,Reports To,Location,Tenure,Secondary Skills,Submodules,Notes
+Jane Doe,jane.doe@shipt.com,VP of Engineering,Leadership,Engineering,Active,,Remote,5,"Strategy, Management",,
+John Smith,john.smith@shipt.com,Director of Engineering,Leadership,Engineering,Active,jane.doe@shipt.com,SF,3,"Management, JavaScript",Frontend,
+Alice Wonderland,alice.wonderland@shipt.com,Director of Engineering,Leadership,Engineering,Active,jane.doe@shipt.com,SF,3,"Management, Python",Backend,
+Bob Builder,bob.builder@shipt.com,Staff Software Engineer,Frontend,Engineering,Active,john.smith@shipt.com,Remote,4,"React, CSS",Frontend,
+Charlie Chocolate,charlie.chocolate@shipt.com,Senior Software Engineer,Backend,Engineering,Active,alice.wonderland@shipt.com,NY,2,"Go, Kubernetes",Backend,
+Eve Eavesdropper,eve.eavesdropper@shipt.com,Software Engineer,Frontend,Engineering,Active,john.smith@shipt.com,Remote,1,"TypeScript, Redux",Frontend,
+Mallory Malicious,mallory.malicious@shipt.com,Software Engineer,Backend,Engineering,Active,alice.wonderland@shipt.com,Remote,1,"Postgres, Java",Backend,
+Trudy Trustworthy,trudy.trustworthy@shipt.com,Principal Engineer,Architecture,Engineering,Active,jane.doe@shipt.com,Remote,6,"System Design, Cloud",Platform,
+Oscar Grouch,oscar.grouch@shipt.com,Senior Database Engineer,Database,Engineering,Active,trudy.trustworthy@shipt.com,Remote,3,"SQL, NoSQL",Platform,

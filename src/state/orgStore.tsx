@@ -135,21 +135,29 @@ function migrateState(state: any): ShiptOrgState {
     if (!state || !state.employees) return state;
 
     const employees = state.employees.map((e: any) => {
+        let updated = { ...e };
+
+        // Migration: workstreams[] -> workstream (string)
+        if (Array.isArray(updated.workstreams)) {
+            updated.workstream = updated.workstreams[0] || "Unassigned";
+            delete updated.workstreams;
+        }
+
         // Migration: primarySkills[] -> primarySkill + secondarySkills[]
-        if (Array.isArray(e.primarySkills)) {
-            const primary = e.primarySkills[0] || "Backend"; // Default if empty
-            const secondary = e.primarySkills.slice(1);
-            const existingSec = Array.isArray(e.secondarySkills) ? e.secondarySkills : [];
+        if (Array.isArray(updated.primarySkills)) {
+            const primary = updated.primarySkills[0] || "Backend"; // Default if empty
+            const secondary = updated.primarySkills.slice(1);
+            const existingSec = Array.isArray(updated.secondarySkills) ? updated.secondarySkills : [];
 
             // Create new object without primarySkills
-            const { primarySkills, ...rest } = e;
-            return {
+            const { primarySkills, ...rest } = updated;
+            updated = {
                 ...rest,
                 primarySkill: primary,
                 secondarySkills: [...secondary, ...existingSec]
             };
         }
-        return e;
+        return updated;
     });
 
     // Migration: Backfill icons for modules from mock data if missing
