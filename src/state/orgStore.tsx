@@ -160,10 +160,17 @@ function migrateState(state: any): ShiptOrgState {
         return updated;
     });
 
-    // Migration: Backfill icons for modules from mock data if missing
+    // Migration: Backfill icons and workstream for modules
     const modules = (state.modules || []).map((m: any) => {
+        // Backfill workstream if missing
+        // For top-level modules, workstream is the name
+        // For submodules, we might not know easily without parent lookup, but orgMetrics only uses top-level for this specific breakdown
+        // So this covers the "Modules Overview" issue.
+        if (!m.workstream && !m.parentId) {
+            m.workstream = m.name;
+        }
+
         if (!m.icon) {
-            // Keep as is, no fallback available
             return m;
         }
         return m;
