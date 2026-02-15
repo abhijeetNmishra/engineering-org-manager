@@ -50,7 +50,6 @@ export interface Employee {
   notes?: string;
   
   // NEW: Skills and career progression
-  // NEW: Skills and career progression
   primarySkill: TechnicalSkill;
   secondarySkills: TechnicalSkill[];
   skillLevel?: SkillLevel;

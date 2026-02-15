@@ -4,7 +4,7 @@ import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, WarningOutlined }
 import type { UploadProps } from "antd";
 import Papa from "papaparse";
 import { useOrgStore } from "../state/orgStore";
-import type { ShiptOrgState, Employee, ModuleNode, EmployeeStatus } from "../domain/types";
+import type { ShiptOrgState, Employee, ModuleNode, EmployeeStatus, Ownership } from "../domain/types";
 
 const { Dragger } = Upload;
 const { Title, Paragraph, Text } = Typography;
@@ -104,9 +104,9 @@ export function BulkPeopleUpload() {
         // 2. Process Structure (Workstreams & Submodules)
         const workstreamMap = new Map<string, string>(); // Name -> ID
 
-        // Index existing modules
+        // Index existing modules (workstreams = top-level modules without parentId)
         nextModules.forEach(m => {
-            if (m.type === "Vertical" || m.type === "Horizontal") {
+            if (!m.parentId) {
                 workstreamMap.set(m.name, m.id);
             }
         });
@@ -162,6 +162,7 @@ export function BulkPeopleUpload() {
         // 3. Process People Upsert & ID Resolution
         const upsertMap = new Map<string, Employee>(); // Email -> Employee Object
         const emailToManagerEmail = new Map<string, string>(); // Email -> Manager Email
+        const newOwnership: Ownership[] = [...(state.ownership || [])];
 
         rows.forEach(row => {
             const email = row["Email"]?.trim().toLowerCase();
@@ -200,9 +201,33 @@ export function BulkPeopleUpload() {
             const notes = row["Notes"]?.trim() || baseEmp.notes;
             const workstreams = row["Workstream"] ? [row["Workstream"].trim()] : (baseEmp.workstreams || []);
 
+            // Resolve submodule names -> IDs for this employee
+            const submodulesStr = row["Submodules"]?.trim();
+            const workstreamName = row["Workstream"]?.trim();
+            const workstreamId = workstreamName ? workstreamMap.get(workstreamName) : undefined;
+            let resolvedSubmoduleIds: string[] = baseEmp.moduleOwnershipIds || [];
+
+            if (submodulesStr && workstreamId) {
+                const subNames = submodulesStr.split(",").map(s => s.trim()).filter(Boolean);
+                resolvedSubmoduleIds = subNames
+                    .map(subName => {
+                        const mod = nextModules.find(m => m.name === subName && m.parentId === workstreamId);
+                        return mod?.id;
+                    })
+                    .filter((id): id is string => !!id);
+
+                // Create ownership records for this employee -> submodule
+                resolvedSubmoduleIds.forEach(modId => {
+                    const alreadyExists = newOwnership.some(o => o.moduleId === modId && o.ownerId === id);
+                    if (!alreadyExists) {
+                        newOwnership.push({ moduleId: modId, ownerId: id, ownershipType: "Contributor" });
+                    }
+                });
+            }
+
             const newEmp: Employee = {
                 id,
-                moduleOwnershipIds: baseEmp.moduleOwnershipIds || [],
+                moduleOwnershipIds: resolvedSubmoduleIds,
                 managerId: baseEmp.managerId, // Will be updated in validation pass
                 email: row["Email"]?.trim(), // Keep original case
                 name,
@@ -248,10 +273,18 @@ export function BulkPeopleUpload() {
         // Add all from upsertMap
         upsertMap.forEach(emp => finalEmployees.push(emp));
 
+        // Log ownership mapping summary
+        const existingOwnershipCount = state.ownership?.length || 0;
+        const newMappingsCount = newOwnership.length - existingOwnershipCount;
+        if (newMappingsCount > 0) {
+            newLogs.push({ type: "success", message: `Created ${newMappingsCount} submodule ownership mapping(s) from the Submodules column.` });
+        }
+
         const newState: ShiptOrgState = {
             ...state,
             employees: finalEmployees,
-            modules: nextModules
+            modules: nextModules,
+            ownership: newOwnership
         };
 
         dispatch({ type: "IMPORT_STATE", payload: newState });
@@ -322,7 +355,30 @@ export function BulkPeopleUpload() {
                         </Paragraph>
 
                         <div style={{ background: "rgba(0,0,0,0.03)", padding: 16, borderRadius: 8, marginBottom: 20, textAlign: "left" }}>
-                            <div style={{ marginBottom: 8, fontWeight: 600, color: "#6B21EF" }}>Required Format (CSV)</div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                <span style={{ fontWeight: 600, color: "#6B21EF" }}>Required Format (CSV)</span>
+                                <Button
+                                    type="link"
+                                    icon={<FileTextOutlined />}
+                                    onClick={() => {
+                                        const headers = ["Full Name", "Email", "Role", "Primary Skill", "Workstream", "Status", "Reports To", "Location", "Tenure", "Secondary Skills", "Submodules", "Notes"];
+                                        const exampleRows = [
+                                            ["Jane Doe", "jane@example.com", "Senior Engineer", "Backend", "MP Engineering", "Active", "manager@example.com", "US", "24", "React, Node", "Search, Browse", "High performer"],
+                                            ["John Smith", "john@example.com", "Engineering Manager", "Full Stack", "Checkout", "Active", "", "US", "36", "Python, AWS", "Payments", "Team lead"]
+                                        ];
+                                        const csvContent = [headers.join(","), ...exampleRows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
+                                        const blob = new Blob([csvContent], { type: "text/csv" });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = "org_upload_template.csv";
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    }}
+                                >
+                                    Download Template
+                                </Button>
+                            </div>
                             <Table
                                 dataSource={schemaData}
                                 columns={columns}

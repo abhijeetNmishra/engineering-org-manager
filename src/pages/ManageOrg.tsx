@@ -22,7 +22,6 @@ import {
     UserOutlined,
     TeamOutlined,
     SwapOutlined,
-    CheckCircleOutlined,
     DeleteOutlined,
     RocketOutlined,
     ShoppingOutlined,
@@ -31,7 +30,6 @@ import {
     AppstoreOutlined,
     FolderOpenOutlined,
 } from "@ant-design/icons";
-import { motion, AnimatePresence } from "framer-motion";
 import type { Employee, WorkstreamKey } from "../domain/types";
 import { useOrgStore } from "../state/orgStore";
 import { getLeaders, getModuleColor } from "../domain/orgMetrics";
@@ -154,10 +152,23 @@ function DroppableLeader({
         <div
             ref={setNodeRef}
             className={`droppable-leader ${isOver ? "over" : ""} ${isActive ? "active" : ""}`}
+            style={{
+                borderLeft: '3px solid #6B21EF',
+            }}
         >
             <div className="leader-header">
-                <div className="leader-avatar">
+                <div className="leader-avatar" style={{
+                    background: 'linear-gradient(135deg, #6B21EF 0%, #9B59B6 100%)',
+                    position: 'relative',
+                }}>
                     <TeamOutlined />
+                    <span style={{
+                        position: 'absolute',
+                        top: -4,
+                        right: -4,
+                        fontSize: 10,
+                        lineHeight: 1,
+                    }}>👑</span>
                 </div>
                 <div className="leader-info">
                     <div className="leader-name">{leader.name}</div>
@@ -615,6 +626,9 @@ export default function ManageOrg() {
                                     isActive={!!activeId}
                                 />
                             ))}
+                            {leaders.length === 0 && (
+                                <Empty description="No leaders found. Assign managers in the People Directory." />
+                            )}
                         </div>
                     </Card>
                 </div>

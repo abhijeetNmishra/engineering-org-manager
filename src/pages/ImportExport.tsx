@@ -54,7 +54,7 @@ export default function ImportExport() {
 
     return (
         <div>
-            <Title level={4} style={{ margin: "0 0 16px 0", color: "rgba(255,255,255,0.92)" }}>
+            <Title level={4} style={{ margin: "0 0 16px 0", color: "var(--text-primary)" }}>
                 Data Management
             </Title>
 

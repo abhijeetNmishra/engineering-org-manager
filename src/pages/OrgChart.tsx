@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { Card } from 'antd';
+import { Card, Empty } from 'antd';
 import ReactFlow, {
     type Node,
     type Edge,
@@ -78,42 +78,40 @@ function OrgChartFlow() {
     const [searchTerm, setSearchTerm] = useState('');
     const { fitView, zoomIn, zoomOut } = useReactFlow();
 
+    // Shared helper: Calculate org level for each employee (VP=1, Director=2, etc.)
+    const getLevelMap = useCallback((employees: Employee[]): Map<string, number> => {
+        const employeeMap = new Map(employees.map((e) => [e.id, e]));
+        const levelMap = new Map<string, number>();
+        const visited = new Set<string>();
+
+        const calculateLevel = (empId: string): number => {
+            if (visited.has(empId)) return levelMap.get(empId) || 0;
+            visited.add(empId);
+
+            const emp = employeeMap.get(empId);
+            if (!emp || !emp.managerId) {
+                levelMap.set(empId, 1); // VP level
+                return 1;
+            }
+
+            const level = calculateLevel(emp.managerId) + 1;
+            levelMap.set(empId, level);
+            return level;
+        };
+
+        employees.forEach((e) => calculateLevel(e.id));
+        return levelMap;
+    }, []);
+
     // Smart default: Collapse all level 3+ employees (show only VP → Directors → SEMs)
     const getInitialCollapsedState = useCallback((): Set<string> => {
         const collapsed = new Set<string>();
-        const employeeMap = new Map(state.employees.map((e) => [e.id, e]));
-
-        // Calculate level for each employee
-        const getLevelMap = (): Map<string, number> => {
-            const levelMap = new Map<string, number>();
-            const visited = new Set<string>();
-
-            const calculateLevel = (empId: string): number => {
-                if (visited.has(empId)) return levelMap.get(empId) || 0;
-                visited.add(empId);
-
-                const emp = employeeMap.get(empId);
-                if (!emp || !emp.managerId) {
-                    levelMap.set(empId, 1); // VP level
-                    return 1;
-                }
-
-                const level = calculateLevel(emp.managerId) + 1;
-                levelMap.set(empId, level);
-                return level;
-            };
-
-            state.employees.forEach((e) => calculateLevel(e.id));
-            return levelMap;
-        };
-
-        const levelMap = getLevelMap();
+        const levelMap = getLevelMap(state.employees);
 
         // Collapse all employees at level 3 and beyond (keep VP and Directors expanded)
         state.employees.forEach((e) => {
             const level = levelMap.get(e.id) || 0;
             if (level >= 3) {
-                // Level 3 = SEMs, collapse them to hide their children
                 const children = state.employees.filter((child) => child.managerId === e.id);
                 if (children.length > 0) {
                     collapsed.add(e.id);
@@ -122,7 +120,7 @@ function OrgChartFlow() {
         });
 
         return collapsed;
-    }, [state.employees]);
+    }, [state.employees, getLevelMap]);
 
     const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(() => getInitialCollapsedState());
 
@@ -255,34 +253,8 @@ function OrgChartFlow() {
 
     const handleExpandToLevel = useCallback(
         (level: number) => {
-            const employeeMap = new Map(state.employees.map((e) => [e.id, e]));
             const collapsed = new Set<string>();
-
-            // Calculate level for each employee
-            const getLevelMap = (): Map<string, number> => {
-                const levelMap = new Map<string, number>();
-                const visited = new Set<string>();
-
-                const calculateLevel = (empId: string): number => {
-                    if (visited.has(empId)) return levelMap.get(empId) || 0;
-                    visited.add(empId);
-
-                    const emp = employeeMap.get(empId);
-                    if (!emp || !emp.managerId) {
-                        levelMap.set(empId, 1);
-                        return 1;
-                    }
-
-                    const lvl = calculateLevel(emp.managerId) + 1;
-                    levelMap.set(empId, lvl);
-                    return lvl;
-                };
-
-                state.employees.forEach((e) => calculateLevel(e.id));
-                return levelMap;
-            };
-
-            const levelMap = getLevelMap();
+            const levelMap = getLevelMap(state.employees);
 
             // Collapse nodes at levels beyond the specified level
             state.employees.forEach((e) => {
@@ -297,7 +269,7 @@ function OrgChartFlow() {
 
             setCollapsedNodes(collapsed);
         },
-        [state.employees]
+        [state.employees, getLevelMap]
     );
 
     const handleSearch = useCallback(
@@ -368,43 +340,51 @@ function OrgChartFlow() {
                 visibleNodes={visibleNodeCount}
             />
 
-            {viewMode === 'chart' && (
-                <div
-                    style={{
-                        height: '72vh',
-                        borderRadius: 16,
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-glass)',
-                    }}
-                >
-                    <ReactFlow
-                        nodes={nodes}
-                        edges={edges}
-                        onNodesChange={onNodesChange}
-                        onEdgesChange={onEdgesChange}
-                        onNodeClick={onNodeClick}
-                        nodeTypes={nodeTypes}
-                        fitView
-                        minZoom={0.1}
-                        maxZoom={2}
-                        defaultEdgeOptions={{
-                            type: 'smoothstep',
-                            animated: false,
-                        }}
-                        proOptions={{ hideAttribution: true }}
-                    >
-                        <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--text-muted)" />
-                        <Controls showInteractive={false} />
-                    </ReactFlow>
+            {state.employees.length === 0 ? (
+                <div style={{ height: '72vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Empty description="No employees found. Import org data from the Import / Export page to get started." />
                 </div>
-            )}
+            ) : (
+                <>
+                    {viewMode === 'chart' && (
+                        <div
+                            style={{
+                                height: '72vh',
+                                borderRadius: 16,
+                                overflow: 'hidden',
+                                border: '1px solid var(--border-glass)',
+                            }}
+                        >
+                            <ReactFlow
+                                nodes={nodes}
+                                edges={edges}
+                                onNodesChange={onNodesChange}
+                                onEdgesChange={onEdgesChange}
+                                onNodeClick={onNodeClick}
+                                nodeTypes={nodeTypes}
+                                fitView
+                                minZoom={0.1}
+                                maxZoom={2}
+                                defaultEdgeOptions={{
+                                    type: 'smoothstep',
+                                    animated: false,
+                                }}
+                                proOptions={{ hideAttribution: true }}
+                            >
+                                <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--text-muted)" />
+                                <Controls showInteractive={false} />
+                            </ReactFlow>
+                        </div>
+                    )}
 
-            {viewMode === 'tree' && <TreeView employees={state.employees} searchTerm={searchTerm} />}
+                    {viewMode === 'tree' && <TreeView employees={state.employees} searchTerm={searchTerm} />}
 
-            {viewMode === 'teams' && (
-                <div style={{ height: '72vh', overflowY: 'auto', paddingRight: 4 }}>
-                    <TeamView employees={state.employees} />
-                </div>
+                    {viewMode === 'teams' && (
+                        <div style={{ height: '72vh', overflowY: 'auto', paddingRight: 4 }}>
+                            <TeamView employees={state.employees} />
+                        </div>
+                    )}
+                </>
             )}
         </Card>
     );

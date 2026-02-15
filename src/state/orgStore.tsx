@@ -284,6 +284,29 @@ export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
                     await orgApi.deleteModule(action.moduleId);
                     break;
 
+                case "UPSERT_OWNERSHIP": {
+                    // Construct expected new ownership (state is stale in this closure)
+                    const existIdx = state.ownership.findIndex(
+                        o => o.moduleId === action.moduleId && o.ownerId === action.ownerId
+                    );
+                    const nextOwnership = [...state.ownership];
+                    if (existIdx >= 0) {
+                        nextOwnership[existIdx] = { ...nextOwnership[existIdx], ownershipType: action.ownershipType };
+                    } else {
+                        nextOwnership.push({ moduleId: action.moduleId, ownerId: action.ownerId, ownershipType: action.ownershipType });
+                    }
+                    await orgApi.saveState({ ...state, ownership: nextOwnership });
+                    break;
+                }
+
+                case "REMOVE_OWNERSHIP": {
+                    const filteredOwnership = state.ownership.filter(
+                        o => !(o.moduleId === action.moduleId && o.ownerId === action.ownerId)
+                    );
+                    await orgApi.saveState({ ...state, ownership: filteredOwnership });
+                    break;
+                }
+
                 case "IMPORT_STATE":
                     // Full state sync
                     await orgApi.saveState(action.payload);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Layout, Menu, Button, ConfigProvider, theme } from "antd";
+import { Layout, Menu, Button, ConfigProvider, theme, Tooltip } from "antd";
 import {
   HomeOutlined,
   TeamOutlined,
@@ -10,10 +10,11 @@ import {
   MenuOutlined,
   CloseOutlined,
   LogoutOutlined,
+  BulbOutlined,
+  BulbFilled,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import {
-  Home,
   PeopleDirectory,
   OrgChart,
   ImportExport,
@@ -25,15 +26,25 @@ import { Login } from "./pages/Login";
 import { OrgStoreProvider } from "./state/orgStore";
 import { useThemeEffect, useThemeStore } from "./state/themeStore";
 import { useAuthStore } from "./state/authStore";
-import { ThemeToggle } from "./components/ThemeToggle";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const { Header, Sider, Content } = Layout;
 
-type RouteKey = "overview" | "home" | "dashboard" | "people" | "modules" | "orgchart" | "data";
+type RouteKey = "overview" | "dashboard" | "people" | "modules" | "orgchart" | "data";
+
+const routeLabels: Record<RouteKey, string> = {
+  overview: "Org Overview",
+  dashboard: "Intelligence Dashboard",
+  people: "People Directory",
+  orgchart: "Org Chart",
+  modules: "Manage Org",
+  data: "Import / Export",
+};
 
 function AppShell() {
   const [route, setRoute] = useState<RouteKey>("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { theme: currentThemeMode, toggleTheme } = useThemeStore();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // Auth store
@@ -84,7 +95,6 @@ function AppShell() {
 
   return (
     <Layout className="app-shell">
-      <ThemeToggle />
 
       {/* Mobile backdrop */}
       {isMobile && mobileMenuOpen && (
@@ -147,26 +157,46 @@ function AppShell() {
             />
           )}
 
-          <div className="brand" style={{ flex: isMobile ? 1 : 'none' }}>
+          <div className="brand" style={{ flex: 'none' }}>
             {isMobile ? "MP Engineering" : "Marketplace Engineering"}
           </div>
 
           {!isMobile && (
-            <Button
-              type="text"
-              icon={<LogoutOutlined />}
-              onClick={logout}
-              style={{ color: 'var(--text-primary)', marginLeft: 'auto' }}
-            >
-              {user?.email || "Logout"}
-            </Button>
+            <span style={{
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 500,
+              marginLeft: 4,
+            }}>
+              / {routeLabels[route]}
+            </span>
           )}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Tooltip title={`Switch to ${currentThemeMode === 'dark' ? 'light' : 'dark'} mode`}>
+              <Button
+                type="text"
+                icon={currentThemeMode === 'dark' ? <BulbOutlined /> : <BulbFilled />}
+                onClick={toggleTheme}
+                style={{ color: 'var(--text-primary)' }}
+              />
+            </Tooltip>
+            {!isMobile && (
+              <Button
+                type="text"
+                icon={<LogoutOutlined />}
+                onClick={logout}
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {user?.email || "Logout"}
+              </Button>
+            )}
+          </div>
         </Header>
 
         <Content className="content">
           <div className={`glass ${["modules", "orgchart"].includes(route) ? 'fixed-height' : ''}`} style={{ padding: 14 }}>
             {route === "overview" && <OrgOverview />}
-            {route === "home" && <Home onNavigate={(r) => setRoute(r as RouteKey)} />}
             {route === "dashboard" && <Intelligence />}
             {route === "people" && <PeopleDirectory />}
             {route === "modules" && <ManageOrg />}
@@ -204,17 +234,19 @@ export default function App() {
 
   // Show authenticated app
   return (
-    <OrgStoreProvider>
-      <ConfigProvider
-        theme={{
-          algorithm: currentTheme === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
-          token: {
-            colorPrimary: "#6B21EF"
-          }
-        }}
-      >
-        <AppShell />
-      </ConfigProvider>
-    </OrgStoreProvider>
+    <ErrorBoundary>
+      <OrgStoreProvider>
+        <ConfigProvider
+          theme={{
+            algorithm: currentTheme === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
+            token: {
+              colorPrimary: "#6B21EF"
+            }
+          }}
+        >
+          <AppShell />
+        </ConfigProvider>
+      </OrgStoreProvider>
+    </ErrorBoundary>
   );
 }

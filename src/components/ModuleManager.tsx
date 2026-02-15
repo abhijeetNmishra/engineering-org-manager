@@ -193,8 +193,14 @@ export const ModuleManager: React.FC = () => {
                         />
                     </Tooltip>
                     <Popconfirm
-                        title="Delete module?"
-                        description="This will delete all submodules as well."
+                        title={`Delete "${m.name}"?`}
+                        description={(() => {
+                            const childCount = state.modules.filter(mod => mod.parentId === m.id).length;
+                            if (childCount > 0) {
+                                return `This will also delete ${childCount} submodule${childCount > 1 ? 's' : ''}.`;
+                            }
+                            return "This action cannot be undone.";
+                        })()}
                         onConfirm={(e) => handleDelete(m.id, e as any)}
                     >
                         <Button type="text" size="small" danger icon={<DeleteOutlined />} />
