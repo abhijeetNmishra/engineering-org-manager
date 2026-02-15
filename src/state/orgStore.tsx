@@ -167,7 +167,7 @@ function migrateState(state: any): ShiptOrgState {
         // For submodules, we might not know easily without parent lookup, but orgMetrics only uses top-level for this specific breakdown
         // So this covers the "Modules Overview" issue.
         if (!m.workstream && !m.parentId) {
-            m.workstream = m.name;
+            m.workstream = m.name.trim();
         }
 
         if (!m.icon) {
@@ -219,7 +219,7 @@ export function OrgStoreProvider({ children }: { children: React.ReactNode }) {
             try {
                 // Try fetching from server first
                 const serverState = await orgApi.loadState();
-                dispatchLocal({ type: "IMPORT_STATE", payload: serverState });
+                dispatchLocal({ type: "IMPORT_STATE", payload: migrateState(serverState) });
             } catch (error) {
                 console.warn("Backend unavailable, falling back to localStorage", error);
                 // Fallback to localStorage
